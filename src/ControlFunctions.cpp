@@ -53,31 +53,36 @@ void botonPermutaEstados(bool estadoBoton, unsigned long tiempoPara1, unsigned l
         *tPrev = tactualBoton;
 }
 
-void activacionElectrovalvula(int pin, unsigned long tactual, unsigned long *prev, unsigned long T, estadosValvula *valvula, estadosValvula *estadoPrev){
-
-    switch (*valvula){
+void activacionElectrovalvula(int pin, unsigned long tactual, unsigned long *prev, unsigned long T, estadosValvula *valvula, estadosValvula *estadoPrev)
+{
+    switch (*valvula)
+    {
     case estadosValvula::Cerrado:
-      digitalWrite(pin, HIGH);
-      *prev = tactual;
-      estadoPrev = valvula;
-      *valvula = estadosValvula::Cambiando;
-      break;
+        digitalWrite(pin, HIGH);
+        *prev = tactual;
+        estadoPrev = valvula;
+        *valvula = estadosValvula::Cambiando;
+        break;
     case estadosValvula::Cambiando:
-      if(tactual-*prev > T){
-        digitalWrite(pin, LOW);
-        if(*estadoPrev == estadosValvula::Abierto){
-          *valvula = estadosValvula::Cerrado;
-        } else if(*estadoPrev == estadosValvula::Cerrado){
-          *valvula = estadosValvula::Abierto;
+        if (tactual - *prev > T)
+        {
+            digitalWrite(pin, LOW);
+            if (*estadoPrev == estadosValvula::Abierto)
+            {
+                *valvula = estadosValvula::Cerrado;
+            }
+            else if (*estadoPrev == estadosValvula::Cerrado)
+            {
+                *valvula = estadosValvula::Abierto;
+            }
         }
-      }
-      break;
+        break;
     case estadosValvula::Abierto:
-      digitalWrite(pin,HIGH);
-      *prev = tactual;
-      *estadoPrev = *valvula;
-      *valvula = estadosValvula::Cambiando;
-      break;
+        digitalWrite(pin, HIGH);
+        *prev = tactual;
+        *estadoPrev = *valvula;
+        *valvula = estadosValvula::Cambiando;
+        break;
     }
 }
 
@@ -88,6 +93,26 @@ bool controlHisteresis(float tObj, float hist, float valor, bool *resultado)
     if (valor < tObj - hist)
         *resultado = HIGH;
     return *resultado;
+}
+
+void cerradoSistema(t_heating_system *sistema)
+{
+    unsigned long tiempoActual = millis();
+    if (sistema->pisos[0].valvula != estadosValvula::Cerrado)
+    {
+      activacionElectrovalvula(sistema->pisos[0].pinValvula, tiempoActual, &sistema->pisos[0].tPrevValvula, 1000, &sistema->pisos[0].valvula, &sistema->pisos[0].valvulaAnterior);
+    }
+    if (sistema->pisos[1].valvula != estadosValvula::Cerrado)
+    {
+      activacionElectrovalvula(sistema->pisos[1].pinValvula, tiempoActual, &sistema->pisos[1].tPrevValvula, 1000, &sistema->pisos[1].valvula, &sistema->pisos[1].valvulaAnterior);
+    }
+    if (sistema->valvulaPrincipal != estadosValvula::Cerrado)
+    {
+      activacionElectrovalvula(sistema->pinPrincipal, tiempoActual, &sistema->tPrevValvula, 1000, &sistema->valvulaPrincipal, &sistema->valvulaPrincipalAnterior);
+      digitalWrite(sistema->pinCaldera, LOW);
+    }
+    if (sistema->bombaPrincipal == 1)
+      sistema->temperaturaAcumulador = 0;
 }
 
 //**************************************************************************************************************
@@ -113,7 +138,4 @@ void ImprimirArduino(char nombre[], float valor)
     Serial.print(valor);
     Serial.print(",");
 }
-
-//**************************************************************************************************************
-//
 #endif

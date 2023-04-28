@@ -1,6 +1,7 @@
 #ifndef globalStruct
 #define globalStruct
 #include <Arduino.h>
+
 enum estadosValvula
 {
   Cerrado = 0,
@@ -46,17 +47,8 @@ typedef struct t_solar_collector
   uint8_t pinValvula;
 };
 
-/*typedef struct t_heating_room
-{
-  t_time horaEncendido;
-  short int valvula;
-  short int valvulaAnterior;
-  uint8_t pinCuarto;
-};*/
-
 typedef struct t_heating_floor
 {
-  // t_heating_room cuartos[2];
   t_sensorTemp sensorT;
   float temperaturaObjetivo;
   float temperatura;
@@ -79,27 +71,40 @@ typedef struct t_ups
   float margenVoltaje;
 };
 
+typedef struct t_acumulador
+{
+  float temperaturaAcumulador;
+  float temperaturaAcumuladorError;
+  float temperaturaDisparoCaldera;
+  t_sensorTemp sensorAcumulador;
+};
+
 typedef struct t_heating_system
 {
   t_time horaReal;
   t_heating_floor pisos[2];
   t_solar_collector colectores[1];
   t_ups alimentacion;
-  unsigned short int bombaPrincipal;
-  float temperaturaAcumulador;
-  float temperaturaAcumuladorError;
-  t_sensorTemp sensorAcumulador;
+
   estadosValvula valvulaPrincipal;
   estadosValvula valvulaPrincipalAnterior;
+  unsigned short int bombaPrincipal;
+  uint8_t pinPrincipal;
+  unsigned long tPrevValvula;
+
+  float temperaturaAcumulador;
+  float temperaturaAcumuladorError;
+  float temperaturaDisparoCaldera;
+  t_sensorTemp sensorAcumulador;
+  uint8_t pinCaldera;
+  
   estadosCalefaccion estadoCalefaccion;
   estadosCalefaccion estadoAnteriorViaje;
-  unsigned long tPrevValvula;
   unsigned long tPrevCambioOnOff;
   unsigned long tPrevCambioViaje;
+
   unsigned long tPrevErrorLed;
   bool prevLEDerror;
-  uint8_t pinPrincipal;
-  uint8_t pinCaldera;
   uint8_t ledError;
 };
 

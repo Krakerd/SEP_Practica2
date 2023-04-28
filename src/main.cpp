@@ -104,7 +104,6 @@ void loop()
   control.alimentacion.lecturaSensor = mapFloat(analogRead(control.alimentacion.pinUPS), 0.0, 1023.0, 0.0, 5.0);
   control.alimentacion.voltajeAlimentacion = mapFloat(control.alimentacion.lecturaSensor, 0.0, 4.0, 0.0, 12.0);
   control.alimentacion.estadoUPS = estadoUPS(control.alimentacion.voltajeAlimentacion, control.alimentacion.margenVoltaje, control.alimentacion.voltajeDeseado);
-
   //***************************************************************************
   //       ERROR POR SOBRETEMPERATURA Y BLINK
   //***************************************************************************
@@ -121,7 +120,6 @@ void loop()
   {
     digitalWrite(control.ledError, LOW);
   }
-
   //***************************************************************************
   //       SISTEMA DE CALEFACCION
   //***************************************************************************
@@ -131,20 +129,7 @@ void loop()
   switch (control.estadoCalefaccion)
   {
   case Off:
-    if (control.pisos[0].valvula != estadosValvula::Cerrado)
-    {
-      activacionElectrovalvula(control.pisos[0].pinValvula, tactual, &control.pisos[0].tPrevValvula, 1000, &control.pisos[0].valvula, &control.pisos[0].valvulaAnterior);
-    }
-    if (control.pisos[1].valvula != estadosValvula::Cerrado)
-    {
-      activacionElectrovalvula(control.pisos[1].pinValvula, tactual, &control.pisos[1].tPrevValvula, 1000, &control.pisos[1].valvula, &control.pisos[1].valvulaAnterior);
-    }
-    if (control.valvulaPrincipal != estadosValvula::Cerrado)
-    {
-      activacionElectrovalvula(control.pinPrincipal, tactual, &control.tPrevValvula, 1000, &control.valvulaPrincipal, &control.valvulaPrincipalAnterior);
-    }
-    if (control.bombaPrincipal == 1)
-      control.bombaPrincipal = 0;
+    cerradoSistema(&control);
     control.estadoAnteriorViaje = control.estadoCalefaccion;
     break;
 
@@ -192,6 +177,10 @@ void loop()
         }
         if (control.bombaPrincipal == 0)
           control.bombaPrincipal = 1;
+        if(control.temperaturaAcumulador >= control.temperaturaDisparoCaldera)
+          digitalWrite(control.pinCaldera, HIGH);
+        else
+          digitalWrite(control.pinCaldera, LOW);
       }
       else
       {
@@ -202,24 +191,12 @@ void loop()
         if (control.bombaPrincipal == 1)
           control.bombaPrincipal = 0;
       }
-    } // ERRORES BLINK Y CIERRE
+    } // ERRORES CIERRE
     else
     {
-      if (control.pisos[0].valvula != estadosValvula::Cerrado)
-      {
-        activacionElectrovalvula(control.pisos[0].pinValvula, tactual, &control.pisos[0].tPrevValvula, 1000, &control.pisos[0].valvula, &control.pisos[0].valvulaAnterior);
-      }
-      if (control.pisos[1].valvula != estadosValvula::Cerrado)
-      {
-        activacionElectrovalvula(control.pisos[1].pinValvula, tactual, &control.pisos[1].tPrevValvula, 1000, &control.pisos[1].valvula, &control.pisos[1].valvulaAnterior);
-      }
-      if (control.valvulaPrincipal != estadosValvula::Cerrado)
-      {
-        activacionElectrovalvula(control.pinPrincipal, tactual, &control.tPrevValvula, 1000, &control.valvulaPrincipal, &control.valvulaPrincipalAnterior);
-      }
-      if (control.bombaPrincipal == 1)
-        control.bombaPrincipal = 0;
+      cerradoSistema(&control);
     }
+    control.estadoAnteriorViaje = control.estadoCalefaccion;
     break;
 
   case Viaje:
@@ -228,24 +205,14 @@ void loop()
     }
     else // CIERRE POR ERRORES
     {
-      if (control.pisos[0].valvula != estadosValvula::Cerrado)
-      {
-        activacionElectrovalvula(control.pisos[0].pinValvula, tactual, &control.pisos[0].tPrevValvula, 1000, &control.pisos[0].valvula, &control.pisos[0].valvulaAnterior);
-      }
-      if (control.pisos[1].valvula != estadosValvula::Cerrado)
-      {
-        activacionElectrovalvula(control.pisos[1].pinValvula, tactual, &control.pisos[1].tPrevValvula, 1000, &control.pisos[1].valvula, &control.pisos[1].valvulaAnterior);
-      }
-      if (control.valvulaPrincipal != estadosValvula::Cerrado)
-      {
-        activacionElectrovalvula(control.pinPrincipal, tactual, &control.tPrevValvula, 1000, &control.valvulaPrincipal, &control.valvulaPrincipalAnterior);
-      }
-      if (control.bombaPrincipal == 1)
-        control.bombaPrincipal = 0;
+      cerradoSistema(&control);
     }
     break;
   }
 
+  //***************************************************************************
+  //       IMPRESIONES
+  //***************************************************************************
   Imprimir("TZona1", control.pisos[0].temperatura);
   Imprimir("TZona2", control.pisos[1].temperatura);
   Imprimir("TColector", control.colectores[0].temperatura);
