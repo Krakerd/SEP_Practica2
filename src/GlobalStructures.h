@@ -13,12 +13,18 @@ enum estadosAlimentacion
   ALIMENTACION_SOBRE,
   ALIMENTACION_DESC
 };
+enum estadosCalefaccion
+{
+  Off,
+  On,
+  Viaje
+};
 
 typedef struct t_time
 {
-  int hour;
-  int minuts;
-  int seconds;
+  unsigned short int hour;
+  unsigned short int minuts;
+  unsigned short int seconds;
 };
 
 typedef struct t_sensorTemp
@@ -34,8 +40,9 @@ typedef struct t_solar_collector
   float temperatura;
   float temperaturaVaciado;
   short int bomba;
-  short int valvula;
-  short int valvulaAnterior;
+  estadosValvula valvula;
+  estadosValvula valvulaAnterior;
+  unsigned long tPrevValvula;
   uint8_t pinValvula;
 };
 
@@ -54,8 +61,10 @@ typedef struct t_heating_floor
   float temperaturaObjetivo;
   float temperatura;
   float histeresis;
-  short int valvula;
-  short int valvulaAnterior;
+  bool necesitaCalefaccion;
+  estadosValvula valvula;
+  estadosValvula valvulaAnterior;
+  unsigned long tPrevValvula;
   uint8_t pinValvula;
 };
 
@@ -70,19 +79,25 @@ typedef struct t_ups
   float margenVoltaje;
 };
 
-
 typedef struct t_heating_system
 {
   t_time horaReal;
   t_heating_floor pisos[2];
   t_solar_collector colectores[1];
   t_ups alimentacion;
-  short int bombaPrincipal;
+  unsigned short int bombaPrincipal;
   float temperaturaAcumulador;
+  float temperaturaAcumuladorError;
   t_sensorTemp sensorAcumulador;
-  short int valvulaPrincipal;
-  short int valvulaPrincipalAnterior;
-  short int calderaOnOff;
+  estadosValvula valvulaPrincipal;
+  estadosValvula valvulaPrincipalAnterior;
+  estadosCalefaccion estadoCalefaccion;
+  estadosCalefaccion estadoAnteriorViaje;
+  unsigned long tPrevValvula;
+  unsigned long tPrevCambioOnOff;
+  unsigned long tPrevCambioViaje;
+  unsigned long tPrevErrorLed;
+  bool prevLEDerror;
   uint8_t pinPrincipal;
   uint8_t pinCaldera;
   uint8_t ledError;
