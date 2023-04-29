@@ -58,12 +58,14 @@ void activacionElectrovalvula(int pin, unsigned long tactual, unsigned long *pre
     switch (*valvula)
     {
     case estadosValvula::Cerrado:
+        Serial.println("CERRANDO");
         digitalWrite(pin, HIGH);
         *prev = tactual;
         estadoPrev = valvula;
         *valvula = estadosValvula::Cambiando;
         break;
     case estadosValvula::Cambiando:
+    //Serial.println("PERMUTANDO");
         if (tactual - *prev > T)
         {
             digitalWrite(pin, LOW);
@@ -78,6 +80,7 @@ void activacionElectrovalvula(int pin, unsigned long tactual, unsigned long *pre
         }
         break;
     case estadosValvula::Abierto:
+        Serial.println("ABRIENDO");
         digitalWrite(pin, HIGH);
         *prev = tactual;
         *estadoPrev = *valvula;
@@ -98,19 +101,20 @@ bool controlHisteresis(float tObj, float hist, float valor, bool *resultado)
 void cerradoSistema(t_heating_system *sistema)
 {
     unsigned long tiempoActual = millis();
+    //Serial.println("IMPRIMIR CIERRE");
     if (sistema->pisos[0].valvula != estadosValvula::Cerrado)
     {
       activacionElectrovalvula(sistema->pisos[0].pinValvula, tiempoActual, &sistema->pisos[0].tPrevValvula, 1000, &sistema->pisos[0].valvula, &sistema->pisos[0].valvulaAnterior);
-    }
+    }else sistema->pisos[0].valvulaAnterior = Cerrado; //Seguridad para cambio de estados
     if (sistema->pisos[1].valvula != estadosValvula::Cerrado)
     {
       activacionElectrovalvula(sistema->pisos[1].pinValvula, tiempoActual, &sistema->pisos[1].tPrevValvula, 1000, &sistema->pisos[1].valvula, &sistema->pisos[1].valvulaAnterior);
-    }
+    }else sistema->pisos[1].valvulaAnterior = Cerrado; //Seguridad para cambio de estados
     if (sistema->valvulaPrincipal != estadosValvula::Cerrado)
     {
       activacionElectrovalvula(sistema->pinPrincipal, tiempoActual, &sistema->tPrevValvula, 1000, &sistema->valvulaPrincipal, &sistema->valvulaPrincipalAnterior);
       digitalWrite(sistema->pinCaldera, LOW);
-    }
+    }else sistema->valvulaPrincipalAnterior = Cerrado; //Seguridad para cambio de estados
     if (sistema->bombaPrincipal == 1)
       sistema->temperaturaAcumulador = 0;
 }

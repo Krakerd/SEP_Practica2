@@ -11,6 +11,8 @@
 
 void contarTiempo(void);
 void shell(void);
+void display_freeram();
+int freeRam();
 
 t_heating_system control;
 
@@ -29,7 +31,9 @@ void setup()
   for (int i = 8; i <= 13; i++)
     pinMode(i, OUTPUT);
   for (int i = 2; i <= 4; i++)
+  {
     pinMode(i, INPUT_PULLUP);
+  }
 
   //***************************************************************************
   //        PUESTA EN HORA DEL RELOJ
@@ -50,6 +54,7 @@ void setup()
   control.sensorAcumulador.pin = A2;
   control.sensorAcumulador.RangoAlto = 80.0; // eeprom
   control.sensorAcumulador.RangoBajo = -5.0; // eeprom
+  control.temperaturaAcumuladorError = 75.0;
   control.colectores[0].sensorT.pin = A3;
   control.colectores[0].sensorT.RangoBajo = -5.0; // eeprom
   control.colectores[0].sensorT.RangoAlto = 80.0; // eeprom
@@ -82,6 +87,7 @@ void contarTiempo(void)
 
 void loop()
 {
+  display_freeram();
   unsigned long tactual = millis();
   //***************************************************************************
   //       LECTURA TIEMPO ACTUAL
@@ -108,11 +114,11 @@ void loop()
   //       ERROR POR SOBRETEMPERATURA Y BLINK
   //***************************************************************************
   control.temperaturaAcumulador = mapFloat(analogRead(control.sensorAcumulador.pin), 0.0, 1023.0, control.sensorAcumulador.RangoBajo, control.sensorAcumulador.RangoAlto);
-  if (control.alimentacion.estadoUPS != estadosAlimentacion::ALIMENTACION_OK)
+  if (control.temperaturaAcumulador >= control.temperaturaAcumuladorError)
   {
-    blinkSinDelays(control.ledError, tactual, 1000, 4000, &control.tPrevErrorLed, &control.prevLEDerror);
+    blinkSinDelays(control.ledError, tactual, 1000, 1000, &control.tPrevErrorLed, &control.prevLEDerror);
   }
-  else if (control.temperaturaAcumulador >= control.temperaturaAcumuladorError)
+  else if (control.alimentacion.estadoUPS != ALIMENTACION_OK)
   {
     blinkSinDelays(control.ledError, tactual, 1000, 4000, &control.tPrevErrorLed, &control.prevLEDerror);
   }
@@ -123,17 +129,18 @@ void loop()
   //***************************************************************************
   //       SISTEMA DE CALEFACCION
   //***************************************************************************
-  botonPermutaEstados(digitalRead(pinOnOff), 2000, 2000, &control.tPrevCambioOnOff, &control.estadoCalefaccion, Off, On);
-  botonPermutaEstados(digitalRead(pinViaje), 3000, 3000, &control.tPrevCambioViaje, &control.estadoCalefaccion, control.estadoAnteriorViaje, Viaje);
-
+  botonPermutaEstados(digitalRead(pinOnOff), 2000, 1000, &control.tPrevCambioOnOff, &control.estadoCalefaccion, Off, On);
+  // Serial.println(control.estadoAnteriorViaje);
   switch (control.estadoCalefaccion)
   {
   case Off:
     cerradoSistema(&control);
+    control.temperaturaAcumulador = mapFloat(analogRead(control.sensorAcumulador.pin), 0.0, 1023.0, control.sensorAcumulador.RangoBajo, control.sensorAcumulador.RangoAlto); // para que no deje de leer la temperatura
     control.estadoAnteriorViaje = control.estadoCalefaccion;
     break;
 
   case On:
+    control.temperaturaAcumulador = mapFloat(analogRead(control.sensorAcumulador.pin), 0.0, 1023.0, control.sensorAcumulador.RangoBajo, control.sensorAcumulador.RangoAlto); // para que no deje de leer la temperatura
     if (control.alimentacion.estadoUPS == estadosAlimentacion::ALIMENTACION_OK)
     {
       // Control Zona 1
@@ -177,7 +184,7 @@ void loop()
         }
         if (control.bombaPrincipal == 0)
           control.bombaPrincipal = 1;
-        if(control.temperaturaAcumulador >= control.temperaturaDisparoCaldera)
+        if (control.temperaturaAcumulador >= control.temperaturaDisparoCaldera)
           digitalWrite(control.pinCaldera, HIGH);
         else
           digitalWrite(control.pinCaldera, LOW);
@@ -231,4 +238,25 @@ void shell(void)
   if (cmd == "HELP")
   {
   }
+}
+
+void display_freeram()
+{
+
+  Serial.print(F("- SRAM left: "));
+  int free = freeRam();
+  Serial.println(free);
+}
+
+int freeRam()
+{
+
+  extern int __heap_start, *__brkval;
+
+  int v;
+
+  return (int)&v - (__brkval == 0
+
+                        ? (int)&__heap_start
+                        : (int)__brkval);
 }
