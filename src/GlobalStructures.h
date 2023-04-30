@@ -102,6 +102,7 @@ typedef struct t_heating_system
   estadosCalefaccion estadoAnteriorViaje;
   unsigned long tPrevCambioOnOff;
   unsigned long tPrevCambioViaje;
+  float temperaturaViaje;
 
   unsigned long tPrevErrorLed;
   bool prevLEDerror;

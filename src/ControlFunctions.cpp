@@ -58,14 +58,12 @@ void activacionElectrovalvula(int pin, unsigned long tactual, unsigned long *pre
     switch (*valvula)
     {
     case estadosValvula::Cerrado:
-        Serial.println("CERRANDO");
         digitalWrite(pin, HIGH);
         *prev = tactual;
-        estadoPrev = valvula;
+        *estadoPrev = *valvula;
         *valvula = estadosValvula::Cambiando;
         break;
     case estadosValvula::Cambiando:
-    //Serial.println("PERMUTANDO");
         if (tactual - *prev > T)
         {
             digitalWrite(pin, LOW);
@@ -80,7 +78,6 @@ void activacionElectrovalvula(int pin, unsigned long tactual, unsigned long *pre
         }
         break;
     case estadosValvula::Abierto:
-        Serial.println("ABRIENDO");
         digitalWrite(pin, HIGH);
         *prev = tactual;
         *estadoPrev = *valvula;
@@ -89,34 +86,61 @@ void activacionElectrovalvula(int pin, unsigned long tactual, unsigned long *pre
     }
 }
 
-bool controlHisteresis(float tObj, float hist, float valor, bool *resultado)
-{
-    if (valor > tObj + hist)
-        *resultado = LOW;
-    if (valor < tObj - hist)
-        *resultado = HIGH;
-    return *resultado;
+void histesis(t_heating_floor *piso){
+    if(piso->temperatura > piso->temperaturaObjetivo + piso->histeresis)
+    {
+        piso->necesitaCalefaccion = false;
+    }
+    else if (piso->temperatura < piso->temperaturaObjetivo - piso->histeresis){
+        piso->necesitaCalefaccion = true;
+    }
 }
 
 void cerradoSistema(t_heating_system *sistema)
 {
     unsigned long tiempoActual = millis();
-    //Serial.println("IMPRIMIR CIERRE");
+    // Serial.println("IMPRIMIR CIERRE");
     if (sistema->pisos[0].valvula != estadosValvula::Cerrado)
     {
-      activacionElectrovalvula(sistema->pisos[0].pinValvula, tiempoActual, &sistema->pisos[0].tPrevValvula, 1000, &sistema->pisos[0].valvula, &sistema->pisos[0].valvulaAnterior);
-    }else sistema->pisos[0].valvulaAnterior = Cerrado; //Seguridad para cambio de estados
+        activacionElectrovalvula(sistema->pisos[0].pinValvula, tiempoActual, &sistema->pisos[0].tPrevValvula, 1000, &sistema->pisos[0].valvula, &sistema->pisos[0].valvulaAnterior);
+    }
+    else
+        sistema->pisos[0].valvulaAnterior = Cerrado; // Seguridad para cambio de estados
     if (sistema->pisos[1].valvula != estadosValvula::Cerrado)
     {
-      activacionElectrovalvula(sistema->pisos[1].pinValvula, tiempoActual, &sistema->pisos[1].tPrevValvula, 1000, &sistema->pisos[1].valvula, &sistema->pisos[1].valvulaAnterior);
-    }else sistema->pisos[1].valvulaAnterior = Cerrado; //Seguridad para cambio de estados
+        activacionElectrovalvula(sistema->pisos[1].pinValvula, tiempoActual, &sistema->pisos[1].tPrevValvula, 1000, &sistema->pisos[1].valvula, &sistema->pisos[1].valvulaAnterior);
+    }
+    else
+        sistema->pisos[1].valvulaAnterior = Cerrado; // Seguridad para cambio de estados
     if (sistema->valvulaPrincipal != estadosValvula::Cerrado)
     {
-      activacionElectrovalvula(sistema->pinPrincipal, tiempoActual, &sistema->tPrevValvula, 1000, &sistema->valvulaPrincipal, &sistema->valvulaPrincipalAnterior);
-      digitalWrite(sistema->pinCaldera, LOW);
-    }else sistema->valvulaPrincipalAnterior = Cerrado; //Seguridad para cambio de estados
+        activacionElectrovalvula(sistema->pinPrincipal, tiempoActual, &sistema->tPrevValvula, 1000, &sistema->valvulaPrincipal, &sistema->valvulaPrincipalAnterior);
+        digitalWrite(sistema->pinCaldera, LOW);
+    }
+    else
+        sistema->valvulaPrincipalAnterior = Cerrado; // Seguridad para cambio de estados
     if (sistema->bombaPrincipal == 1)
-      sistema->temperaturaAcumulador = 0;
+        sistema->temperaturaAcumulador = 0;
+}
+
+void controlZona(t_heating_floor *zona, bool activacion, unsigned long time)
+{
+    if (activacion)
+    {
+        if (zona->valvula != estadosValvula::Abierto)
+        {
+            activacionElectrovalvula(zona->pinValvula, time, &zona->tPrevValvula, 1000, &zona->valvula, &zona->valvulaAnterior);
+        }
+        else
+            zona->valvula = Abierto;
+    }
+    else
+    {
+        if (zona->valvula != estadosValvula::Cerrado)
+        {
+            activacionElectrovalvula(zona->pinValvula, time, &zona->tPrevValvula, 1000, &zona->valvula, &zona->valvulaAnterior);
+        }
+    }
 }
 
 //**************************************************************************************************************

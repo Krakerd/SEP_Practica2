@@ -6,8 +6,8 @@
 #include "BlinkSinDelays.h"
 
 #define pinOnOff 2
-#define pinViaje 3
-#define pinReset 4
+#define pinViaje 4
+#define pinReset 3
 
 void contarTiempo(void);
 void shell(void);
@@ -15,6 +15,7 @@ void display_freeram();
 int freeRam();
 
 t_heating_system control;
+bool encenderZonas[sizeof(control.pisos)/sizeof(t_heating_floor)];
 
 void setup()
 {
@@ -66,6 +67,7 @@ void setup()
   control.pisos[0].sensorT.pin = A1;
   control.pisos[0].pinValvula = 9;
   control.pisos[0].valvula = Cerrado;
+  control.pisos[0].necesitaCalefaccion = false;
   control.pisos[0].temperaturaObjetivo = 20.0; // temperatura objetivo debe ir a eeprom
   control.pisos[0].histeresis = 1.0;           // eeprom
   control.pisos[0].sensorT.RangoAlto = 80.0;   // eeprom
@@ -74,6 +76,7 @@ void setup()
   control.pisos[1].sensorT.pin = A5;
   control.pisos[1].pinValvula = 11;
   control.pisos[1].valvula = Cerrado;
+  control.pisos[1].necesitaCalefaccion = false;
   control.pisos[1].temperaturaObjetivo = 20.0; // temperatura objetivo debe ir a eeprom
   control.pisos[1].histeresis = 1.0;           // eeprom
   control.pisos[1].sensorT.RangoAlto = 80.0;   // eeprom
@@ -87,7 +90,6 @@ void contarTiempo(void)
 
 void loop()
 {
-  display_freeram();
   unsigned long tactual = millis();
   //***************************************************************************
   //       LECTURA TIEMPO ACTUAL
@@ -130,13 +132,25 @@ void loop()
   //       SISTEMA DE CALEFACCION
   //***************************************************************************
   botonPermutaEstados(digitalRead(pinOnOff), 2000, 1000, &control.tPrevCambioOnOff, &control.estadoCalefaccion, Off, On);
-  // Serial.println(control.estadoAnteriorViaje);
+  // Encendido por hora
+  
   switch (control.estadoCalefaccion)
   {
   case Off:
     cerradoSistema(&control);
     control.temperaturaAcumulador = mapFloat(analogRead(control.sensorAcumulador.pin), 0.0, 1023.0, control.sensorAcumulador.RangoBajo, control.sensorAcumulador.RangoAlto); // para que no deje de leer la temperatura
     control.estadoAnteriorViaje = control.estadoCalefaccion;
+    // Boton de viaje
+    if (tactual - control.tPrevCambioViaje > 2000)
+    {
+      if (digitalRead(pinViaje) == HIGH)
+      {
+        control.estadoCalefaccion = Viaje;
+        control.tPrevCambioViaje = tactual;
+      }
+    }
+    if (digitalRead(pinViaje) == HIGH)
+      control.tPrevCambioViaje = tactual;
     break;
 
   case On:
@@ -144,37 +158,11 @@ void loop()
     if (control.alimentacion.estadoUPS == estadosAlimentacion::ALIMENTACION_OK)
     {
       // Control Zona 1
-      control.pisos[0].necesitaCalefaccion = controlHisteresis(control.pisos[0].temperaturaObjetivo, control.pisos[0].temperatura, control.pisos[0].histeresis, &control.pisos[0].necesitaCalefaccion);
-      if (control.pisos[0].necesitaCalefaccion)
-      {
-        if (control.pisos[0].valvula != estadosValvula::Abierto)
-        {
-          activacionElectrovalvula(control.pisos[0].pinValvula, tactual, &control.pisos[0].tPrevValvula, 1000, &control.pisos[0].valvula, &control.pisos[0].valvulaAnterior);
-        }
-      }
-      else
-      {
-        if (control.pisos[0].valvula != estadosValvula::Cerrado)
-        {
-          activacionElectrovalvula(control.pisos[0].pinValvula, tactual, &control.pisos[0].tPrevValvula, 1000, &control.pisos[0].valvula, &control.pisos[0].valvulaAnterior);
-        }
-      }
+      histesis(&control.pisos[0]);
+      controlZona(&control.pisos[0], control.pisos[0].necesitaCalefaccion, tactual);
       // Control Zona 2
-      control.pisos[1].necesitaCalefaccion = controlHisteresis(control.pisos[1].temperaturaObjetivo, control.pisos[1].temperatura, control.pisos[1].histeresis, &control.pisos[1].necesitaCalefaccion);
-      if (control.pisos[1].necesitaCalefaccion)
-      {
-        if (control.pisos[1].valvula != estadosValvula::Abierto)
-        {
-          activacionElectrovalvula(control.pisos[1].pinValvula, tactual, &control.pisos[1].tPrevValvula, 1000, &control.pisos[1].valvula, &control.pisos[1].valvulaAnterior);
-        }
-      }
-      else
-      {
-        if (control.pisos[1].valvula != estadosValvula::Cerrado)
-        {
-          activacionElectrovalvula(control.pisos[1].pinValvula, tactual, &control.pisos[1].tPrevValvula, 1000, &control.pisos[1].valvula, &control.pisos[1].valvulaAnterior);
-        }
-      }
+      histesis(&control.pisos[1]);
+      controlZona(&control.pisos[1], control.pisos[1].necesitaCalefaccion, tactual);
       // Encender Apagar calefaccion principal.
       if (control.pisos[0].necesitaCalefaccion || control.pisos[1].necesitaCalefaccion)
       {
@@ -204,16 +192,68 @@ void loop()
       cerradoSistema(&control);
     }
     control.estadoAnteriorViaje = control.estadoCalefaccion;
+    // BOTON VIAJE
+    if (tactual - control.tPrevCambioViaje > 2000)
+    {
+      if (digitalRead(pinViaje) == HIGH)
+      {
+        control.estadoCalefaccion = Viaje;
+        control.tPrevCambioViaje = tactual;
+      }
+    }
+    if (digitalRead(pinViaje) == HIGH)
+      control.tPrevCambioViaje = tactual;
     break;
 
   case Viaje:
     if (control.alimentacion.estadoUPS == estadosAlimentacion::ALIMENTACION_OK)
     {
+      // Control Zona 1
+      histesis(&control.pisos[0]);
+      controlZona(&control.pisos[0], control.pisos[0].necesitaCalefaccion, tactual);
+      // Control Zona 2
+      histesis(&control.pisos[1]);
+      controlZona(&control.pisos[1], control.pisos[1].necesitaCalefaccion, tactual);
+      // Encender Apagar calefaccion principal.
+      if (control.pisos[0].necesitaCalefaccion || control.pisos[1].necesitaCalefaccion)
+      {
+        if (control.valvulaPrincipal != estadosValvula::Abierto)
+        {
+          activacionElectrovalvula(control.pinPrincipal, tactual, &control.tPrevValvula, 1000, &control.valvulaPrincipal, &control.valvulaPrincipalAnterior);
+        }
+        if (control.bombaPrincipal == 0)
+          control.bombaPrincipal = 1;
+        if (control.temperaturaAcumulador >= control.temperaturaDisparoCaldera)
+          digitalWrite(control.pinCaldera, HIGH);
+        else
+          digitalWrite(control.pinCaldera, LOW);
+      }
+      else
+      {
+        if (control.valvulaPrincipal != estadosValvula::Cerrado)
+        {
+          activacionElectrovalvula(control.pinPrincipal, tactual, &control.tPrevValvula, 1000, &control.valvulaPrincipal, &control.valvulaPrincipalAnterior);
+        }
+        if (control.bombaPrincipal == 1)
+          control.bombaPrincipal = 0;
+      }
     }
-    else // CIERRE POR ERRORES
+    else // CIERRE POR ERRORES  Imprimir("boolZona1", control.pisos[0].necesitaCalefaccion);
+
     {
       cerradoSistema(&control);
     }
+    // VUELTA VIAJE
+    if (tactual - control.tPrevCambioViaje > 1000)
+    {
+      if (digitalRead(pinViaje) == HIGH)
+      {
+        control.estadoCalefaccion = control.estadoAnteriorViaje;
+        control.tPrevCambioViaje = tactual;
+      }
+    }
+    if (digitalRead(pinViaje) == HIGH)
+      control.tPrevCambioViaje = tactual;
     break;
   }
 
@@ -237,26 +277,9 @@ void shell(void)
   Serial.println(cmd);
   if (cmd == "HELP")
   {
+    Serial.println(F("/////////////////////////////////////////////////////"));
+    Serial.print(F("\t"));
+    Serial.println(F("LSITA DE COMANDOS"));
+    Serial.println(F("/////////////////////////////////////////////////////"));
   }
-}
-
-void display_freeram()
-{
-
-  Serial.print(F("- SRAM left: "));
-  int free = freeRam();
-  Serial.println(free);
-}
-
-int freeRam()
-{
-
-  extern int __heap_start, *__brkval;
-
-  int v;
-
-  return (int)&v - (__brkval == 0
-
-                        ? (int)&__heap_start
-                        : (int)__brkval);
 }
