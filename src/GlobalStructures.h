@@ -40,10 +40,13 @@ typedef struct t_solar_collector
   t_sensorTemp sensorT;
   float temperatura;
   float temperaturaVaciado;
-  short int bomba;
+  bool vacio;
+  unsigned long tiempoVaciado;
+  unsigned short int bomba;
   estadosValvula valvula;
   estadosValvula valvulaAnterior;
   unsigned long tPrevValvula;
+  unsigned long tPrevVaciado;
   uint8_t pinValvula;
 };
 
@@ -82,6 +85,11 @@ typedef struct t_acumulador
 typedef struct t_heating_system
 {
   t_time horaReal;
+  t_time horaOn;
+  t_time horaOff;
+  bool controlPorHoras;
+  bool controlPorHorasAnterior;
+  
   t_heating_floor pisos[2];
   t_solar_collector colectores[1];
   t_ups alimentacion;

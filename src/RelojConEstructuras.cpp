@@ -20,6 +20,7 @@ int compararTiempo(t_time *t_actual, t_time *t_comparar)
 
 int StringToTiempo(String cadena, t_time *resultado)
 {
+    int comparacionCorrecta = 0;
     String horasS = cadena.substring(0, cadena.indexOf(':'));
     int horasL = horasS.toInt();
     String minutosS = cadena.substring(cadena.indexOf(':') + 1, cadena.lastIndexOf(':'));
@@ -29,7 +30,14 @@ int StringToTiempo(String cadena, t_time *resultado)
     resultado->hour = horasL;
     resultado->minuts = minutosL;
     resultado->seconds = segundosL;
-    return 1;
+    //Verificar que la conversion ha sido correcta
+    char cadena2[10];
+    sprintf(cadena2, "%02d:%02d:%02d", resultado->hour, resultado->minuts, resultado->seconds);
+    String cadenaComparar = cadena2;
+    if(cadenaComparar == cadena){
+        comparacionCorrecta = 1;
+    }
+    return comparacionCorrecta;
 }
 
 void guardarTiempo(t_time hora)
