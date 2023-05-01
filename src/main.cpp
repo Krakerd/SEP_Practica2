@@ -311,6 +311,9 @@ void loop()
   Imprimir("TensionUPS", control.alimentacion.voltajeAlimentacion);
   Imprimir("Sistema", control.estadoCalefaccion);
   Imprimir("ValvulaZona1", control.pisos[0].valvula);
+  Imprimir("ValvulaZona2",control.pisos[1].valvula);
+  Imprimir("ValvulaColector", control.colectores[0].valvula);
+  Imprimir("ValvulaPrincipal", control.valvulaPrincipal);
 }
 
 void shell(void)

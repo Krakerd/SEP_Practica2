@@ -4,4 +4,5 @@
 #include <Arduino.h>
 #include <EEPROM.h>
 void PresetFabrica(void);
+void GuardarConfig(t_heating_system *sistema);
 #endif

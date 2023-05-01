@@ -52,4 +52,11 @@ void PresetFabrica(void){
 
     EEPROM.put(1, fabrica);
 }
+
+void GuardarConfig(t_heating_system *sistema)
+{
+    int addres = sizeof(t_heating_system)+1;
+    EEPROM.put(addres, *sistema);
+    EEPROM.update(1,1);
+}
 #endif
