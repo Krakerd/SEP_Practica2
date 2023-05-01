@@ -58,46 +58,17 @@ void setup()
   //***************************************************************************
   //        PRESET GENERAL
   //***************************************************************************
-  EEPROM.get(1,control);
-  Serial.println(control.pinCaldera);
-  /*control.pinCaldera = 13;
-  control.pinPrincipal = 10;
-  control.alimentacion.pinUPS = A0;
-  control.alimentacion.voltajeDeseado = 12.0;
-  control.alimentacion.margenVoltaje = 1.0;
-  control.ledError = 12;
-  control.sensorAcumulador.pin = A2;
-  control.sensorAcumulador.RangoAlto = 80.0; // eeprom
-  control.sensorAcumulador.RangoBajo = -5.0; // eeprom
-  control.temperaturaAcumuladorError = 75.0;
-  control.colectores[0].sensorT.pin = A3;
-  control.colectores[0].sensorT.RangoBajo = -5.0; // eeprom
-  control.colectores[0].sensorT.RangoAlto = 80.0; // eeprom
-  control.estadoCalefaccion = estadosCalefaccion::Off;
-
-  //***************************************************************************
-  //        PRESET ZONAS
-  //***************************************************************************
-  control.pisos[0].sensorT.pin = A1;
-  control.pisos[0].pinValvula = 9;
-  control.pisos[0].valvula = Cerrado;
-  control.pisos[0].necesitaCalefaccion = false;
-  control.pisos[0].temperaturaObjetivo = 20.0; // temperatura objetivo debe ir a eeprom
-  control.pisos[0].histeresis = 1.0;           // eeprom
-  control.pisos[0].sensorT.RangoAlto = 80.0;   // eeprom
-  control.pisos[0].sensorT.RangoBajo = -5.0;   // eeprom
-
-  control.pisos[1].sensorT.pin = A5;
-  control.pisos[1].pinValvula = 11;
-  control.pisos[1].valvula = Cerrado;
-  control.pisos[1].necesitaCalefaccion = false;
-  control.pisos[1].temperaturaObjetivo = 20.0; // temperatura objetivo debe ir a eeprom
-  control.pisos[1].histeresis = 1.0;           // eeprom
-  control.pisos[1].sensorT.RangoAlto = 80.0;   // eeprom
-  control.pisos[1].sensorT.RangoBajo = -5.0;   // eeprom
-  */
+  if (EEPROM.read(0) == 0)
+    EEPROM.get(1, control);
+  if (EEPROM.read(0) == 1)
+  {
+    int address = sizeof(t_heating_system)+1;
+    EEPROM.get(address, control);
+  }
+  control.estadoCalefaccion = Off;
+  control.tPrevCambioViaje = millis(); // compensar tiempo de leida de EEPROM
+  control.tPrevCambioOnOff = millis(); // compensar tiempo de leida de EEPROM
 }
-
 void contarTiempo(void)
 {
   control.horaReal.seconds += 1;
@@ -333,13 +304,13 @@ void loop()
   //***************************************************************************
   //       IMPRESIONES
   //***************************************************************************
-  /*Imprimir("TZona1", control.pisos[0].temperatura);
+  Imprimir("TZona1", control.pisos[0].temperatura);
   Imprimir("TZona2", control.pisos[1].temperatura);
   Imprimir("TColector", control.colectores[0].temperatura);
   Imprimir("TAcumulador", control.temperaturaAcumulador);
   Imprimir("TensionUPS", control.alimentacion.voltajeAlimentacion);
   Imprimir("Sistema", control.estadoCalefaccion);
-  Imprimir("ValvulaZona1", control.pisos[0].valvula);*/
+  Imprimir("ValvulaZona1", control.pisos[0].valvula);
 }
 
 void shell(void)
