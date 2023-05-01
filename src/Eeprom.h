@@ -2,5 +2,6 @@
 #define eeProto
 #include "GlobalStructures.h"
 #include <Arduino.h>
-void Preset(t_heating_system *control_guardar);
+#include <EEPROM.h>
+void PresetFabrica(void);
 #endif

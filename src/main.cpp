@@ -19,6 +19,7 @@
 #include "ControlFunctions.h"
 #include "RelojConEstructuras.h"
 #include "BlinkSinDelays.h"
+#include "Eeprom.h"
 
 #define pinOnOff 2
 #define pinViaje 4
@@ -54,11 +55,12 @@ void setup()
   int conv = StringToTiempo(__TIME__, &control.horaReal);
   if (conv != 1)
     Serial.println("ERROR EN LA PUESTA EN HORA");
-
   //***************************************************************************
   //        PRESET GENERAL
   //***************************************************************************
-  control.pinCaldera = 13;
+  EEPROM.get(1,control);
+  Serial.println(control.pinCaldera);
+  /*control.pinCaldera = 13;
   control.pinPrincipal = 10;
   control.alimentacion.pinUPS = A0;
   control.alimentacion.voltajeDeseado = 12.0;
@@ -93,6 +95,7 @@ void setup()
   control.pisos[1].histeresis = 1.0;           // eeprom
   control.pisos[1].sensorT.RangoAlto = 80.0;   // eeprom
   control.pisos[1].sensorT.RangoBajo = -5.0;   // eeprom
+  */
 }
 
 void contarTiempo(void)
@@ -330,13 +333,13 @@ void loop()
   //***************************************************************************
   //       IMPRESIONES
   //***************************************************************************
-  Imprimir("TZona1", control.pisos[0].temperatura);
+  /*Imprimir("TZona1", control.pisos[0].temperatura);
   Imprimir("TZona2", control.pisos[1].temperatura);
   Imprimir("TColector", control.colectores[0].temperatura);
   Imprimir("TAcumulador", control.temperaturaAcumulador);
   Imprimir("TensionUPS", control.alimentacion.voltajeAlimentacion);
   Imprimir("Sistema", control.estadoCalefaccion);
-  Imprimir("ValvulaZona1", control.pisos[0].valvula);
+  Imprimir("ValvulaZona1", control.pisos[0].valvula);*/
 }
 
 void shell(void)
