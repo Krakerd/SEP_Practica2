@@ -1,7 +1,7 @@
 #ifndef eeImp
 #define eeImp
 #include <Arduino.h>
-#include "Eeprom.h"
+#include "EeFunctions.h"
 #include <EEPROM.h>
 void PresetFabrica(void){
     t_heating_system fabrica;

@@ -15,11 +15,12 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>.*/
 #include <Arduino.h>
 #include <TimerOne.h>
+#include <EEPROM.h>
 #include "GlobalStructures.h"
 #include "ControlFunctions.h"
 #include "RelojConEstructuras.h"
 #include "BlinkSinDelays.h"
-#include "Eeprom.h"
+#include "EeFunctions.h"
 
 #define pinOnOff 2
 #define pinViaje 4
@@ -58,6 +59,7 @@ void setup()
   //***************************************************************************
   //        PRESET GENERAL
   //***************************************************************************
+  
   if (EEPROM.read(0) == 0)
     EEPROM.get(1, control);
   if (EEPROM.read(0) == 1)
