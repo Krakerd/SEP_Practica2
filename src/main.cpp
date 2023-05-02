@@ -54,17 +54,17 @@ void setup()
   //        PUESTA EN HORA DEL RELOJ
   //***************************************************************************
   int conv = StringToTiempo(__TIME__, &control.horaReal);
-  if (conv != 1)
+  if (conv != 0)
     Serial.println("ERROR EN LA PUESTA EN HORA");
   //***************************************************************************
   //        PRESET GENERAL
   //***************************************************************************
-  
+
   if (EEPROM.read(0) == 0)
     EEPROM.get(1, control);
   if (EEPROM.read(0) == 1)
   {
-    int address = sizeof(t_heating_system)+1;
+    int address = sizeof(t_heating_system) + 1;
     EEPROM.get(address, control);
   }
   control.estadoCalefaccion = Off;
@@ -313,7 +313,7 @@ void loop()
   Imprimir("TensionUPS", control.alimentacion.voltajeAlimentacion);
   Imprimir("Sistema", control.estadoCalefaccion);
   Imprimir("ValvulaZona1", control.pisos[0].valvula);
-  Imprimir("ValvulaZona2",control.pisos[1].valvula);
+  Imprimir("ValvulaZona2", control.pisos[1].valvula);
   Imprimir("ValvulaColector", control.colectores[0].valvula);
   Imprimir("ValvulaPrincipal", control.valvulaPrincipal);
 }
@@ -330,15 +330,15 @@ void shell(void)
     Serial.print(F("\t"));
     Serial.println(F("LSITA DE COMANDOS"));
     Serial.println(F("/////////////////////////////////////////////////////"));
-    Serial.println(F("SET_OBJECTIVE_TEMPERATURE Z X.X -> Define la temperatura objetivo de la zona Z al float X.X"));
+    Serial.println(F("SET_OBJECTIVE_TEMPERATURE Z X.X -> Define la temperatura objetivo de la zona Z (0-1) al float X.X"));
     Serial.println(F("SET_TRAVEL_TEMPERATURE X.X -> Define la temperatura minima del modo viaje al float X.X"));
     Serial.println(F("SET_BOILER_TEMPERATURE X.X -> Define la temperatura de disparo de caldera al float X.X"));
     Serial.println(F("SET_COLLECTOR_TEMPERATURE X.X -> Define la temperatura de vaciado del colector al float X.X"));
-    Serial.println(F("SET_COLLECTOR_EMPTY_TIME XX.XX -> se cambia el tiempo de vaciado del colector al float X.X"));
+    Serial.println(F("SET_COLLECTOR_EMPTY_TIME XX -> se cambia el tiempo de vaciado del colector al valor XX (s)"));
     Serial.println(F("SET_ON_HOUR hh:mm:ss -> Define la hora de encendido a la hora proporcionada"));
     Serial.println(F("SET_OFF_HOUR hh:mm:ss -> Define la hora de apagado a la hora proporcionada"));
     Serial.println(F("ENABLE_HOUR_CONTROL -> Activa el control por horas de la calefaccion"));
-    Serial.println(F("SET_HISTERESIS Z X.X -> Modifica la histeresis de la zona Z al valor X.X"));
+    Serial.println(F("SET_HISTERESIS Z X.X -> Modifica la histeresis de la zona Z (0-1) al valor X.X"));
     Serial.println(F("SET_UPPER_RANGE_Z Z X.X -> Modifica el valor maximo del sensor de temperatura de la zona Z al valor X.X"));
     Serial.println(F("SET_LOWER_RANGE_Z Z X.X -> Modifica el valor minimo del sensor de temperatura de la zona Z al valor X.X"));
     Serial.println(F("SET_UPPER_RANGE_A X.X -> Modifica el valor maximo del sensor de temperatura del acumulador al valor X.X"));
@@ -349,5 +349,36 @@ void shell(void)
     Serial.println(F("LOAD -> Carga los datos de la configuracion guardada en la EEPROM aunque se haya pulsado el boton de reset"));
     Serial.println(F("RECOVER -> Carga los datos de la EEPROM y se dejan listos para carga con el inicio de sistema en caso de haber pulsado el RESET"));
     Serial.println(F("STATUS -> Muestra los datos del sistema de control"));
+  }
+  else if (cmd.substring(0, cmd.indexOf(' ')) == "SET_OBJECTIVE_TEMPERATURE")
+  {
+    String zoneS = cmd.substring(cmd.indexOf(' ') + 1, cmd.lastIndexOf(' '));
+    int zone = zoneS.toInt();
+    unsigned long zoneU = (unsigned long)zone;
+    if (zoneU >= sizeof(control.pisos) / sizeof(t_heating_floor))
+    {
+      Serial.println("ZONA SELECCIONADA FUERA DE INDICE");
+    }
+    else
+    {
+      control.pisos[zone].temperaturaObjetivo = getCommandFloat(cmd);
+    }
+  }
+  else if (cmd.substring(0, cmd.indexOf(' ')) == "SET_TRAVEL_TEMPERATURE")
+  {
+    control.temperaturaViaje = getCommandFloat(cmd);
+  }
+  else if (cmd.substring(0, cmd.indexOf(' ')) == "SET_BOILER_TEMPERATURE")
+  {
+    control.temperaturaDisparoCaldera = getCommandFloat(cmd);
+  }
+  else if (cmd.substring(0, cmd.indexOf(' ')) == "SET_COLLECTOR_TEMPERATURE")
+  {
+    control.colectores[0].temperaturaVaciado = getCommandFloat(cmd);
+  }
+  else if (cmd.substring(0, cmd.indexOf(' ')) == "SET_COLLECTOR_EMPTY_TIME")
+  {
+    unsigned long tiempo = (unsigned long) getCommandFloat(cmd) * 1000;
+    control.colectores[0].tiempoVaciado = tiempo;
   }
 }

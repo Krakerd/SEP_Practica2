@@ -13,7 +13,7 @@ estadosAlimentacion estadoUPS(float voltaje, float margen, float valor)
      * @param voltaje voltaje deseado, debe ser el limite inferior de nuestra franja aceptada
      * @param margen margen de sobre voltaje aceptado para la alimentacion
      * @param valor Valor de voltaje real, NO VOLTAJE MEDIDO POR EL ADC
-     * 
+     *
      * @return Un estado de entre ALIMENTACION_OK, ALIMENTACION_SOBRE, ALIMENTACION_DESC
      */
     static estadosAlimentacion resultado = estadosAlimentacion::ALIMENTACION_OK;
@@ -44,7 +44,7 @@ void botonPermutaEstados(bool estadoBoton, unsigned long tiempoPara1, unsigned l
      * @param estadoSistema puntero que apunta al estado del sistema, puede ser On, Off o Viaje
      * @param estado1 estado 1 de entre los dos estados a los que se puede cambiar
      * @param estado2 estado 2 de entre los dos estados a los que se puede cambiar
-     * 
+     *
      * @return VOID
      */
     unsigned long tactualBoton = millis();
@@ -78,14 +78,14 @@ void activacionElectrovalvula(int pin, unsigned long tactual, unsigned long *pre
 {
     /**
      * @brief Permutar el estado de una valvula
-     * 
+     *
      * @param pin define el pin al que se encuentra conectada la valvula
      * @param tactual tiempo actual del sistema desde el arranque (ms)
      * @param prev tiempo previo, define el inicio de la permutacion de estado (ms)
      * @param T tiempo de permutacion (ms)
      * @param valvula estado de la valvula, puede ser Cerrado, Abierto o Cambiando
      * @param valvulaAnterior estado anterior de la valvula, necesario para saber a donde cambiar
-     * 
+     *
      * @return VOID
      */
     switch (*valvula)
@@ -119,15 +119,17 @@ void activacionElectrovalvula(int pin, unsigned long tactual, unsigned long *pre
     }
 }
 
-void histesis(t_heating_floor *piso){
+void histesis(t_heating_floor *piso)
+{
     /**
      * @brief Control de histeresis de la zona
      */
-    if(piso->temperatura > piso->temperaturaObjetivo + piso->histeresis)
+    if (piso->temperatura > piso->temperaturaObjetivo + piso->histeresis)
     {
         piso->necesitaCalefaccion = false;
     }
-    else if (piso->temperatura < piso->temperaturaObjetivo - piso->histeresis){
+    else if (piso->temperatura < piso->temperaturaObjetivo - piso->histeresis)
+    {
         piso->necesitaCalefaccion = true;
     }
 }
@@ -165,12 +167,12 @@ void cerradoSistema(t_heating_system *sistema)
 void controlZona(t_heating_floor *zona, bool activacion, unsigned long time)
 {
     /**
-     * @brief Realiza el control de la valvula de zona 
-     * 
+     * @brief Realiza el control de la valvula de zona
+     *
      * @param zona puntero que otorga la zona
      * @param activacion indica si la zona debe estar activada o no
      * @param time tiempo actua necesario para la activacion
-     * 
+     *
      * @return VOID
      */
     if (activacion)
@@ -197,6 +199,12 @@ void controlZona(t_heating_floor *zona, bool activacion, unsigned long time)
 float mapFloat(float x, float in_min, float in_max, float out_min, float out_max)
 {
     return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
+}
+float getCommandFloat(String command)
+{
+    String valorS = command.substring(command.lastIndexOf(' '));
+    float valor = valorS.toFloat();
+    return valor;
 }
 void Imprimir(char nombre[], float valor)
 {

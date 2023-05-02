@@ -4,6 +4,9 @@
 #include <Arduino.h>
 void imprimirTiempo(t_time hora)
 {
+    /**
+     * @brief Imprime el tiempo con el formato XX:XX:XX
+     */
     char buffer[10];
     sprintf(buffer, "%02d:%02d:%02d", hora.hour, hora.minuts, hora.seconds);
     Serial.println(buffer);
@@ -11,6 +14,15 @@ void imprimirTiempo(t_time hora)
 
 int compararTiempo(t_time *t_actual, t_time *t_comparar)
 {
+    /**
+     * @brief Compara un objeto de tiempo para ver si es menor, igual o mayor
+     * 
+     * @param t_actual puntero que indica el tiempo que debe ser comparado
+     * @param t_comparar indica la marca de tiempo con la que debe ser comparado el primer valor proporcionado
+     * 
+     * @return un valor > 0 si el tiempo actual es mayor que el tiempo a comparar, 0 si es igual y <0 si es
+     *         menor el primer valor al segundo
+     */
     int resultado = 0;
     long int segundosActual = t_actual->hour * 3600 + t_actual->minuts * 60 + t_actual->seconds;
     long int segundosComparar = t_comparar->hour * 3600 + t_comparar->minuts * 60 + t_comparar->seconds;
@@ -20,7 +32,15 @@ int compararTiempo(t_time *t_actual, t_time *t_comparar)
 
 int StringToTiempo(String cadena, t_time *resultado)
 {
-    int comparacionCorrecta = 0;
+    /**
+     * @brief Convierte una cadena de texto a una estructura t_time
+     * 
+     * @param cadena String que contiene la cadena de texto con la hora, formato XX:XX:XX
+     * @param resultado puntero que nos otorga la estructura a ser llenada
+     * 
+     * @return 0 si la conversion fue exitosa y 1 si fracaso
+     */
+    int comparacionCorrecta = 1;
     String horasS = cadena.substring(0, cadena.indexOf(':'));
     int horasL = horasS.toInt();
     String minutosS = cadena.substring(cadena.indexOf(':') + 1, cadena.lastIndexOf(':'));
@@ -35,13 +55,17 @@ int StringToTiempo(String cadena, t_time *resultado)
     sprintf(cadena2, "%02d:%02d:%02d", resultado->hour, resultado->minuts, resultado->seconds);
     String cadenaComparar = cadena2;
     if(cadenaComparar == cadena){
-        comparacionCorrecta = 1;
+        comparacionCorrecta = 0;
     }
     return comparacionCorrecta;
 }
 
 void guardarTiempo(t_time hora)
 {
+    /**
+     * @brief Guarda el tiempo y convierte los segundos a minutos, minutos a horas y resetea horas tras
+     *      llegar a las 24
+     */
     if (hora.seconds == 60)
     {
         hora.minuts = hora.minuts + 1;
