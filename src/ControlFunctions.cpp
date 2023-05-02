@@ -8,6 +8,14 @@
 //**************************************************************************************************************
 estadosAlimentacion estadoUPS(float voltaje, float margen, float valor)
 {
+    /**
+     * @brief Funcion para el control de los estados de la alimentacion
+     * @param voltaje voltaje deseado, debe ser el limite inferior de nuestra franja aceptada
+     * @param margen margen de sobre voltaje aceptado para la alimentacion
+     * @param valor Valor de voltaje real, NO VOLTAJE MEDIDO POR EL ADC
+     * 
+     * @return Un estado de entre ALIMENTACION_OK, ALIMENTACION_SOBRE, ALIMENTACION_DESC
+     */
     static estadosAlimentacion resultado = estadosAlimentacion::ALIMENTACION_OK;
     if (voltaje > (valor + margen))
     {
@@ -26,6 +34,19 @@ estadosAlimentacion estadoUPS(float voltaje, float margen, float valor)
 
 void botonPermutaEstados(bool estadoBoton, unsigned long tiempoPara1, unsigned long tiempoPara2, unsigned long *tPrev, estadosCalefaccion *estadoSistema, estadosCalefaccion estado1, estadosCalefaccion estado2)
 {
+    /**
+     * @brief Boton que cambia entre dos estados de calefaccion (On, Off, Viaje) con tiempos de manera
+     *      Asincrona
+     * @param estadoBoton boolean que indica si el boton esta pulsado o no
+     * @param tiempoPara1 tiempo que debe estar pulsado el boton para pasar al estado 1 (ms)
+     * @param tiempoPara2 tiempo que debe estar pulsado el boton para pasar al estado 2 (ms)
+     * @param tPrev puntero que indica el tiempo previo, necesario para poder comprar (ms)
+     * @param estadoSistema puntero que apunta al estado del sistema, puede ser On, Off o Viaje
+     * @param estado1 estado 1 de entre los dos estados a los que se puede cambiar
+     * @param estado2 estado 2 de entre los dos estados a los que se puede cambiar
+     * 
+     * @return VOID
+     */
     unsigned long tactualBoton = millis();
     if (*estadoSistema == estado1)
     {
@@ -55,6 +76,18 @@ void botonPermutaEstados(bool estadoBoton, unsigned long tiempoPara1, unsigned l
 
 void activacionElectrovalvula(int pin, unsigned long tactual, unsigned long *prev, unsigned long T, estadosValvula *valvula, estadosValvula *estadoPrev)
 {
+    /**
+     * @brief Permutar el estado de una valvula
+     * 
+     * @param pin define el pin al que se encuentra conectada la valvula
+     * @param tactual tiempo actual del sistema desde el arranque (ms)
+     * @param prev tiempo previo, define el inicio de la permutacion de estado (ms)
+     * @param T tiempo de permutacion (ms)
+     * @param valvula estado de la valvula, puede ser Cerrado, Abierto o Cambiando
+     * @param valvulaAnterior estado anterior de la valvula, necesario para saber a donde cambiar
+     * 
+     * @return VOID
+     */
     switch (*valvula)
     {
     case estadosValvula::Cerrado:
@@ -87,6 +120,9 @@ void activacionElectrovalvula(int pin, unsigned long tactual, unsigned long *pre
 }
 
 void histesis(t_heating_floor *piso){
+    /**
+     * @brief Control de histeresis de la zona
+     */
     if(piso->temperatura > piso->temperaturaObjetivo + piso->histeresis)
     {
         piso->necesitaCalefaccion = false;
@@ -98,6 +134,9 @@ void histesis(t_heating_floor *piso){
 
 void cerradoSistema(t_heating_system *sistema)
 {
+    /**
+     * @brief Cierra el sistema de calefaccion
+     */
     unsigned long tiempoActual = millis();
     // Serial.println("IMPRIMIR CIERRE");
     if (sistema->pisos[0].valvula != estadosValvula::Cerrado)
@@ -125,6 +164,15 @@ void cerradoSistema(t_heating_system *sistema)
 
 void controlZona(t_heating_floor *zona, bool activacion, unsigned long time)
 {
+    /**
+     * @brief Realiza el control de la valvula de zona 
+     * 
+     * @param zona puntero que otorga la zona
+     * @param activacion indica si la zona debe estar activada o no
+     * @param time tiempo actua necesario para la activacion
+     * 
+     * @return VOID
+     */
     if (activacion)
     {
         if (zona->valvula != estadosValvula::Abierto)
