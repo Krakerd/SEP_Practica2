@@ -32,7 +32,7 @@ estadosAlimentacion estadoUPS(float voltaje, float margen, float valor)
     return resultado;
 }
 
-void botonPermutaEstados(bool estadoBoton,unsigned long tactualBoton, unsigned long tiempoPara1, unsigned long tiempoPara2, unsigned long *tPrev, estadosCalefaccion *estadoSistema, estadosCalefaccion estado1, estadosCalefaccion estado2)
+void botonPermutaEstados(bool estadoBoton, unsigned long tiempoPara1, unsigned long tiempoPara2, unsigned long *tPrev, estadosCalefaccion *estadoSistema, estadosCalefaccion estado1, estadosCalefaccion estado2)
 {
     /**
      * @brief Boton que cambia entre dos estados de calefaccion (On, Off, Viaje) con tiempos de manera
@@ -47,6 +47,7 @@ void botonPermutaEstados(bool estadoBoton,unsigned long tactualBoton, unsigned l
      *
      * @return VOID
      */
+    unsigned long tactualBoton = millis();
     if (*estadoSistema == estado1)
     {
         if (tactualBoton - *tPrev > tiempoPara2)
@@ -205,7 +206,7 @@ float getCommandFloat(String command)
     float valor = valorS.toFloat();
     return valor;
 }
-void Imprimir(const char nombre[], float valor)
+void Imprimir(char nombre[], float valor)
 {
     // FUNCION HECHA PARA IMPRIMIR CON TELEPLOT (EXTENSION DE VSCODE)
     Serial.print(">");

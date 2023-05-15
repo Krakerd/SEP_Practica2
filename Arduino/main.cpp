@@ -31,14 +31,6 @@ void shell(void);
 
 t_heating_system control;
 String cmd;
-float tempZona1RAW;
-float tempZona2RAW;
-float upsRAW;
-float tempAcumuladorRAW;
-float tempColectorRAW;
-bool botonOnOffRAW;
-bool botonViajeRAW;
-bool botonResetRAW;
 
 void setup()
 {
@@ -101,11 +93,12 @@ void loop()
     cmd = Serial.readString();
     cmd.toUpperCase();
     shell();
+    
   }
   //***************************************************************************
   //       LECTURA Y CONTROL UPS
   //***************************************************************************
-  /*control.alimentacion.lecturaSensor = mapFloat(analogRead(control.alimentacion.pinUPS), 0.0, 1023.0, 0.0, 5.0);
+  control.alimentacion.lecturaSensor = mapFloat(analogRead(control.alimentacion.pinUPS), 0.0, 1023.0, 0.0, 5.0);
   control.alimentacion.voltajeAlimentacion = mapFloat(control.alimentacion.lecturaSensor, 0.0, 4.0, 0.0, 12.0);
   control.alimentacion.estadoUPS = estadoUPS(control.alimentacion.voltajeAlimentacion, control.alimentacion.margenVoltaje, control.alimentacion.voltajeDeseado);
   //***************************************************************************
@@ -152,17 +145,13 @@ void loop()
     if (control.colectores[0].valvula == estadosValvula::Cerrado || control.colectores[0].temperatura >= control.colectores[0].temperaturaVaciado)
       control.colectores[0].estadoColector = 0;
     break;
-  }*/
+  }
   //***************************************************************************
   //       SISTEMA DE CALEFACCION
   //***************************************************************************
-  tempZona1RAW = analogRead(control.pisos[0].sensorT.pin);
-  tempZona2RAW = analogRead(control.pisos[1].sensorT.pin);
-  control.pisos[0].temperatura = mapFloat(tempZona1RAW, 0.0, 1023.0, control.pisos[0].sensorT.RangoBajo, control.pisos[0].sensorT.RangoAlto);
-  control.pisos[1].temperatura = mapFloat(tempZona2RAW, 0.0, 1023.0, control.pisos[1].sensorT.RangoBajo, control.pisos[1].sensorT.RangoAlto);
-  botonOnOffRAW = digitalRead(pinOnOff);
-  botonViajeRAW = digitalRead(pinViaje);
-  botonPermutaEstados(botonOnOffRAW,tactual, 2000, 1000, &control.tPrevCambioOnOff, &control.estadoCalefaccion, Off, On);
+  control.pisos[0].temperatura = mapFloat(analogRead(control.pisos[0].sensorT.pin), 0.0, 1023.0, control.pisos[0].sensorT.RangoBajo, control.pisos[0].sensorT.RangoAlto);
+  control.pisos[1].temperatura = mapFloat(analogRead(control.pisos[1].sensorT.pin), 0.0, 1023.0, control.pisos[1].sensorT.RangoBajo, control.pisos[1].sensorT.RangoAlto);
+  botonPermutaEstados(digitalRead(pinOnOff), 2000, 1000, &control.tPrevCambioOnOff, &control.estadoCalefaccion, Off, On);
   // Control por hora
   if (compararTiempo(&horaActualCopy, &control.horaOn) >= 0 && control.controlPorHoras)
   {
@@ -182,14 +171,14 @@ void loop()
     // Boton de viaje
     if (tactual - control.tPrevCambioViaje > 2000)
     {
-      if (botonViajeRAW == HIGH)
+      if (digitalRead(pinViaje) == HIGH)
       {
         control.estadoCalefaccion = Viaje;
         control.controlPorHoras = false;
         control.tPrevCambioViaje = tactual;
       }
     }
-    if (botonViajeRAW == HIGH)
+    if (digitalRead(pinViaje) == HIGH)
       control.tPrevCambioViaje = tactual;
     break;
 
@@ -237,14 +226,14 @@ void loop()
     // BOTON VIAJE
     if (tactual - control.tPrevCambioViaje > 2000)
     {
-      if (botonViajeRAW == HIGH)
+      if (digitalRead(pinViaje) == HIGH)
       {
         control.estadoCalefaccion = Viaje;
         control.controlPorHoras = false;
         control.tPrevCambioViaje = tactual;
       }
     }
-    if (botonViajeRAW == HIGH)
+    if (digitalRead(pinViaje) == HIGH)
       control.tPrevCambioViaje = tactual;
     break;
 
@@ -291,14 +280,14 @@ void loop()
     // VUELTA VIAJE
     if (tactual - control.tPrevCambioViaje > 1000)
     {
-      if (botonViajeRAW == HIGH)
+      if (digitalRead(pinViaje) == HIGH)
       {
         control.estadoCalefaccion = control.estadoAnteriorViaje;
         control.controlPorHoras = control.controlPorHorasAnterior;
         control.tPrevCambioViaje = tactual;
       }
     }
-    if (botonViajeRAW == HIGH)
+    if (digitalRead(pinViaje) == HIGH)
       control.tPrevCambioViaje = tactual;
     break;
   }

@@ -40,7 +40,7 @@ typedef struct t_solar_collector
   t_sensorTemp sensorT;
   float temperatura;
   float temperaturaVaciado;
-  bool vacio;
+  short int estadoColector;
   unsigned long tiempoVaciado;
   unsigned short int bomba;
   estadosValvula valvula;
