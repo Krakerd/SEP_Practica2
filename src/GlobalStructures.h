@@ -92,7 +92,6 @@ typedef struct t_heating_system
   t_time horaOn;
   t_time horaOff;
   bool controlPorHoras;
-  bool controlPorHorasAnterior;
   
   t_heating_floor pisos[2];
   t_solar_collector colectores[1];
