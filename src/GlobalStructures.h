@@ -18,7 +18,11 @@ enum estadosCalefaccion
 {
   Off,
   On,
-  Viaje
+  Viaje,
+  CambiandoOn,
+  CambiandoOff,
+  CambiandoViaje,
+  VolviendoViaje
 };
 
 typedef struct t_time

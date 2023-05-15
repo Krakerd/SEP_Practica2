@@ -68,7 +68,7 @@ void setup()
   //***************************************************************************
   //        PRESET GENERAL
   //***************************************************************************
-  PresetFabrica();
+  // PresetFabrica();
   De_eeprom_a_structura_fabrica(&control);
   control.estadoCalefaccion = Off;
   //***************************************************************************
@@ -99,13 +99,14 @@ void loop()
   if (Serial.available() > 0)
   {
     cmd = Serial.readString();
+    control.estadoCalefaccion = control.estadoAnteriorViaje;
     cmd.toUpperCase();
     shell();
   }
   //***************************************************************************
   //       LECTURA Y CONTROL UPS
   //***************************************************************************
-  /*control.alimentacion.lecturaSensor = mapFloat(analogRead(control.alimentacion.pinUPS), 0.0, 1023.0, 0.0, 5.0);
+  control.alimentacion.lecturaSensor = mapFloat(analogRead(control.alimentacion.pinUPS), 0.0, 1023.0, 0.0, 5.0);
   control.alimentacion.voltajeAlimentacion = mapFloat(control.alimentacion.lecturaSensor, 0.0, 4.0, 0.0, 12.0);
   control.alimentacion.estadoUPS = estadoUPS(control.alimentacion.voltajeAlimentacion, control.alimentacion.margenVoltaje, control.alimentacion.voltajeDeseado);
   //***************************************************************************
@@ -152,7 +153,7 @@ void loop()
     if (control.colectores[0].valvula == estadosValvula::Cerrado || control.colectores[0].temperatura >= control.colectores[0].temperaturaVaciado)
       control.colectores[0].estadoColector = 0;
     break;
-  }*/
+  }
   //***************************************************************************
   //       SISTEMA DE CALEFACCION
   //***************************************************************************
@@ -162,7 +163,9 @@ void loop()
   control.pisos[1].temperatura = mapFloat(tempZona2RAW, 0.0, 1023.0, control.pisos[1].sensorT.RangoBajo, control.pisos[1].sensorT.RangoAlto);
   botonOnOffRAW = digitalRead(pinOnOff);
   botonViajeRAW = digitalRead(pinViaje);
-  botonPermutaEstados(botonOnOffRAW,tactual, 2000, 1000, &control.tPrevCambioOnOff, &control.estadoCalefaccion, Off, On);
+  botonOnOff(botonOnOffRAW, tactual, 1000, 2000, &control.tPrevCambioOnOff, &control.estadoCalefaccion);
+  botonViaje(botonViajeRAW, tactual, 2000, 1000, &control.tPrevCambioViaje, &control.estadoCalefaccion, &control.estadoAnteriorViaje);
+
   // Control por hora
   if (compararTiempo(&horaActualCopy, &control.horaOn) >= 0 && control.controlPorHoras)
   {
@@ -180,7 +183,7 @@ void loop()
     control.estadoAnteriorViaje = control.estadoCalefaccion;
     control.controlPorHorasAnterior = control.controlPorHoras;
     // Boton de viaje
-    if (tactual - control.tPrevCambioViaje > 2000)
+    /*if (tactual - control.tPrevCambioViaje > 2000)
     {
       if (botonViajeRAW == HIGH)
       {
@@ -190,11 +193,14 @@ void loop()
       }
     }
     if (botonViajeRAW == HIGH)
-      control.tPrevCambioViaje = tactual;
+      control.tPrevCambioViaje = tactual;*/
+
     break;
 
   case On:
     control.temperaturaAcumulador = mapFloat(analogRead(control.sensorAcumulador.pin), 0.0, 1023.0, control.sensorAcumulador.RangoBajo, control.sensorAcumulador.RangoAlto); // para que no deje de leer la temperatura
+    control.estadoAnteriorViaje = control.estadoCalefaccion;
+    control.controlPorHorasAnterior = control.controlPorHoras;
     if (control.alimentacion.estadoUPS == estadosAlimentacion::ALIMENTACION_OK)
     {
       // Control Zona 1int compararTiempo(t_time t_actual, t_time t_comparar);
@@ -231,11 +237,9 @@ void loop()
     {
       cerradoSistema(&control);
     }
-    control.estadoAnteriorViaje = control.estadoCalefaccion;
-    control.controlPorHorasAnterior = control.controlPorHoras;
 
     // BOTON VIAJE
-    if (tactual - control.tPrevCambioViaje > 2000)
+    /*if (tactual - control.tPrevCambioViaje > 2000)
     {
       if (botonViajeRAW == HIGH)
       {
@@ -245,7 +249,8 @@ void loop()
       }
     }
     if (botonViajeRAW == HIGH)
-      control.tPrevCambioViaje = tactual;
+      control.tPrevCambioViaje = tactual;*/
+
     break;
 
   case Viaje:
@@ -289,7 +294,7 @@ void loop()
       cerradoSistema(&control);
     }
     // VUELTA VIAJE
-    if (tactual - control.tPrevCambioViaje > 1000)
+    /*if (tactual - control.tPrevCambioViaje > 1000)
     {
       if (botonViajeRAW == HIGH)
       {
@@ -299,7 +304,8 @@ void loop()
       }
     }
     if (botonViajeRAW == HIGH)
-      control.tPrevCambioViaje = tactual;
+      control.tPrevCambioViaje = tactual;*/
+
     break;
   }
 
@@ -320,6 +326,8 @@ void loop()
 
 void shell(void)
 {
+  control.tPrevCambioViaje = millis();
+  control.tPrevCambioOnOff = millis();
   Serial.println("");
   Serial.println(cmd);
   if (cmd == "HELP")
@@ -381,6 +389,8 @@ void shell(void)
   }
   else if (cmd.substring(0, cmd.indexOf(' ')) == "STATUS")
   {
+    Serial.print(F("Estado del sistema: "));
+    Serial.println(control.estadoCalefaccion);
     Serial.print(F("Margen de alimentacion: "));
     Serial.println(control.alimentacion.margenVoltaje);
     Serial.print(F("Voltaje de alimentacion: "));

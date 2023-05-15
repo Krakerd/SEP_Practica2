@@ -32,45 +32,88 @@ estadosAlimentacion estadoUPS(float voltaje, float margen, float valor)
     return resultado;
 }
 
-void botonPermutaEstados(bool estadoBoton,unsigned long tactualBoton, unsigned long tiempoPara1, unsigned long tiempoPara2, unsigned long *tPrev, estadosCalefaccion *estadoSistema, estadosCalefaccion estado1, estadosCalefaccion estado2)
+void botonOnOff(bool estadoBoton, unsigned long tactualBoton, unsigned long tiempoParaOn, unsigned long tiempoParaOff, unsigned long *tPrev, estadosCalefaccion *estadoSistema)
 {
     /**
-     * @brief Boton que cambia entre dos estados de calefaccion (On, Off, Viaje) con tiempos de manera
+     * @brief Boton que cambia entre dos estados de calefaccion (On, Off) con tiempos de manera
      *      Asincrona
      * @param estadoBoton boolean que indica si el boton esta pulsado o no
      * @param tiempoPara1 tiempo que debe estar pulsado el boton para pasar al estado 1 (ms)
      * @param tiempoPara2 tiempo que debe estar pulsado el boton para pasar al estado 2 (ms)
      * @param tPrev puntero que indica el tiempo previo, necesario para poder comprar (ms)
      * @param estadoSistema puntero que apunta al estado del sistema, puede ser On, Off o Viaje
-     * @param estado1 estado 1 de entre los dos estados a los que se puede cambiar
-     * @param estado2 estado 2 de entre los dos estados a los que se puede cambiar
      *
      * @return VOID
      */
-    if (*estadoSistema == estado1)
-    {
-        if (tactualBoton - *tPrev > tiempoPara2)
-        {
-            if (estadoBoton == HIGH)
-            {
-                *estadoSistema = On;
-                *tPrev = tactualBoton;
-            }
-        }
-    }
-    else if (*estadoSistema == estado2)
-    {
-        if (tactualBoton - *tPrev > tiempoPara1)
-        {
-            if (estadoBoton == HIGH)
-            {
-                *estadoSistema = Off;
-                *tPrev = tactualBoton;
-            }
-        }
-    }
     if (estadoBoton == HIGH)
         *tPrev = tactualBoton;
+    switch (*estadoSistema)
+    {
+    case On:
+        if (tactualBoton - *tPrev > tiempoParaOff)
+        {
+            *estadoSistema = CambiandoOff;
+        }
+        break;
+    case CambiandoOff:
+        if (estadoBoton == HIGH)
+            *estadoSistema = Off;
+        break;
+    case Off:
+        if (tactualBoton - *tPrev > tiempoParaOn)
+        {
+            *estadoSistema = CambiandoOn;
+        }
+        break;
+    case CambiandoOn:
+        if (estadoBoton == HIGH)
+            *estadoSistema = On;
+        break;
+    default:
+        break;
+    }
+}
+void botonViaje(bool estadoBoton, unsigned long tactualBoton, unsigned long tEntradaViaje, unsigned long tSalidaViaje, unsigned long *tPrev, estadosCalefaccion *sistema, estadosCalefaccion *sistemaPrevViaje)
+{
+    if (estadoBoton == HIGH)
+        *tPrev = tactualBoton;
+    switch (*sistema)
+    {
+    case On:
+        if (tactualBoton - *tPrev > tEntradaViaje)
+
+        {
+            *sistema = CambiandoViaje;
+        }
+        break;
+    case Off:
+
+        if (tactualBoton - *tPrev > tEntradaViaje)
+        {
+            *sistema = CambiandoViaje;
+        }
+        break;
+    case CambiandoViaje:
+        if (estadoBoton == HIGH)
+        {
+            *sistema = Viaje;
+        }
+        break;
+    case Viaje:
+        if (tactualBoton - *tPrev > tSalidaViaje)
+        {
+            *sistema = VolviendoViaje;
+        }
+        break;
+    case VolviendoViaje:
+        if(estadoBoton == HIGH)
+        {
+            *sistema = *sistemaPrevViaje;
+        }
+        break;
+    default:
+        break;
+    }
 }
 
 void activacionElectrovalvula(int pin, unsigned long tactual, unsigned long *prev, unsigned long T, estadosValvula *valvula, estadosValvula *estadoPrev)
