@@ -182,19 +182,6 @@ void loop()
     control.temperaturaAcumulador = mapFloat(analogRead(control.sensorAcumulador.pin), 0.0, 1023.0, control.sensorAcumulador.RangoBajo, control.sensorAcumulador.RangoAlto); // para que no deje de leer la temperatura
     control.estadoAnteriorViaje = control.estadoCalefaccion;
     control.controlPorHorasAnterior = control.controlPorHoras;
-    // Boton de viaje
-    /*if (tactual - control.tPrevCambioViaje > 2000)
-    {
-      if (botonViajeRAW == HIGH)
-      {
-        control.estadoCalefaccion = Viaje;
-        control.controlPorHoras = false;
-        control.tPrevCambioViaje = tactual;
-      }
-    }
-    if (botonViajeRAW == HIGH)
-      control.tPrevCambioViaje = tactual;*/
-
     break;
 
   case On:
@@ -237,20 +224,6 @@ void loop()
     {
       cerradoSistema(&control);
     }
-
-    // BOTON VIAJE
-    /*if (tactual - control.tPrevCambioViaje > 2000)
-    {
-      if (botonViajeRAW == HIGH)
-      {
-        control.estadoCalefaccion = Viaje;
-        control.controlPorHoras = false;
-        control.tPrevCambioViaje = tactual;
-      }
-    }
-    if (botonViajeRAW == HIGH)
-      control.tPrevCambioViaje = tactual;*/
-
     break;
 
   case Viaje:
@@ -293,19 +266,6 @@ void loop()
     {
       cerradoSistema(&control);
     }
-    // VUELTA VIAJE
-    /*if (tactual - control.tPrevCambioViaje > 1000)
-    {
-      if (botonViajeRAW == HIGH)
-      {
-        control.estadoCalefaccion = control.estadoAnteriorViaje;
-        control.controlPorHoras = control.controlPorHorasAnterior;
-        control.tPrevCambioViaje = tactual;
-      }
-    }
-    if (botonViajeRAW == HIGH)
-      control.tPrevCambioViaje = tactual;*/
-
     break;
   }
 
@@ -353,7 +313,6 @@ void shell(void)
     Serial.println(F("SET_UPS_ERROR X.X -> Cambia la tension del error de alimentacion al valor X.X"));
     Serial.println(F("SAVE -> Guarda la configuración actual a la EEPROM"));
     Serial.println(F("LOAD -> Carga los datos de la configuracion guardada en la EEPROM aunque se haya pulsado el boton de reset"));
-    Serial.println(F("RECOVER -> Carga los datos de la EEPROM y se dejan listos para carga con el inicio de sistema en caso de haber pulsado el RESET"));
     Serial.println(F("STATUS -> Muestra los datos del sistema de control"));
   }
   else if (cmd.substring(0, cmd.indexOf(' ')) == "SET_OBJECTIVE_TEMPERATURE")
