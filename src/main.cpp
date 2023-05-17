@@ -58,19 +58,18 @@ void setup()
   {
     pinMode(i, INPUT_PULLUP);
   }
-
+  //***************************************************************************
+  //        PRESET GENERAL
+  //***************************************************************************
+  PresetFabrica();
+  De_eeprom_a_structura_fabrica(&control);
+  control.estadoCalefaccion = Off;
   //***************************************************************************
   //        PUESTA EN HORA DEL RELOJ
   //***************************************************************************
   int conv = StringToTiempo(__TIME__, &control.horaReal);
   if (conv != 0)
     Serial.println("ERROR EN LA PUESTA EN HORA");
-  //***************************************************************************
-  //        PRESET GENERAL
-  //***************************************************************************
-  // PresetFabrica();
-  De_eeprom_a_structura_fabrica(&control);
-  control.estadoCalefaccion = Off;
   //***************************************************************************
   //        PRESET VALVULAS
   //***************************************************************************
@@ -90,8 +89,10 @@ void loop()
   //***************************************************************************
   t_time horaActualCopy;
   noInterrupts();
-  guardarTiempo(control.horaReal);
-  horaActualCopy = control.horaReal;
+  guardarTiempo(&control.horaReal);
+  horaActualCopy.hour = control.horaReal.hour;
+  horaActualCopy.minuts = control.horaReal.minuts;
+  horaActualCopy.seconds = control.horaReal.seconds;
   interrupts();
   //***************************************************************************
   //       LLAMADA A SHELL
@@ -99,7 +100,6 @@ void loop()
   if (Serial.available() > 0)
   {
     cmd = Serial.readString();
-    control.estadoCalefaccion = control.estadoAnteriorViaje;
     cmd.toUpperCase();
     shell();
   }
@@ -167,13 +167,23 @@ void loop()
   botonViaje(botonViajeRAW, tactual, 2000, 1000, &control.tPrevCambioViaje, &control.estadoCalefaccion, &control.estadoAnteriorViaje);
 
   // Control por hora
-  if (compararTiempo(&horaActualCopy, &control.horaOn) >= 0 && control.controlPorHoras)
+  if (control.controlPorHoras == true)
   {
-    control.estadoCalefaccion = On;
-  }
-  if (compararTiempo(&horaActualCopy, &control.horaOff) >= 0 && control.controlPorHoras)
-  {
-    control.estadoCalefaccion = Off;
+    if (control.estadoCalefaccion != Viaje)
+    {
+      if (compararTiempo(&horaActualCopy, &control.horaOn) >= 0)
+      {
+        if (compararTiempo(&horaActualCopy, &control.horaOff) < 0)
+        {
+          control.estadoCalefaccion = On;
+          Serial.println("DENTRO 2");
+        }
+      }
+      if (compararTiempo(&horaActualCopy, &control.horaOff) >= 0)
+      {
+        control.estadoCalefaccion = Off;
+      }
+    }
   }
   switch (control.estadoCalefaccion)
   {
@@ -266,7 +276,11 @@ void loop()
     }
     break;
   }
-
+  //***************************************************************************
+  //       BOTON RESET
+  //***************************************************************************
+  botonResetRAW = digitalRead(pinReset);
+  botonReset(botonResetRAW, tactual, 2000, &control);
   //***************************************************************************
   //       IMPRESIONES
   //***************************************************************************
@@ -301,7 +315,7 @@ void shell(void)
     Serial.println(F("SET_COLLECTOR_EMPTY_TIME XX -> se cambia el tiempo de vaciado del colector al valor XX (s)"));
     Serial.println(F("SET_ON_HOUR hh:mm:ss -> Define la hora de encendido a la hora proporcionada"));
     Serial.println(F("SET_OFF_HOUR hh:mm:ss -> Define la hora de apagado a la hora proporcionada"));
-    Serial.println(F("ENABLE_HOUR_CONTROL -> Activa el control por horas de la calefaccion"));
+    Serial.println(F("TOGGLE_HOUR_CONTROL -> Activa/Desactiva el control por horas de la calefaccion"));
     Serial.println(F("SET_HISTERESIS Z X.X -> Modifica la histeresis de la zona Z al valor X.X"));
     Serial.println(F("SET_UPPER_RANGE_Z Z X.X -> Modifica el valor maximo del sensor de temperatura de la zona Z al valor X.X"));
     Serial.println(F("SET_LOWER_RANGE_Z Z X.X -> Modifica el valor minimo del sensor de temperatura de la zona Z al valor X.X"));
@@ -320,11 +334,11 @@ void shell(void)
     unsigned long zoneU = (unsigned long)zone - 1;
     if (zoneU >= sizeof(control.pisos) / sizeof(t_heating_floor))
     {
-      Serial.println("ZONA SELECCIONADA FUERA DE INDICE");
+      Serial.println(F("ZONA SELECCIONADA FUERA DE INDICE"));
     }
     else
     {
-      control.pisos[zone].temperaturaObjetivo = getCommandFloat(cmd);
+      control.pisos[zoneU].temperaturaObjetivo = getCommandFloat(cmd);
     }
   }
   else if (cmd.substring(0, cmd.indexOf(' ')) == "SET_TRAVEL_TEMPERATURE")
@@ -344,10 +358,95 @@ void shell(void)
     unsigned long tiempo = (unsigned long)getCommandFloat(cmd) * 1000;
     control.colectores[0].tiempoVaciado = tiempo;
   }
+  else if (cmd.substring(0, cmd.indexOf(' ')) == "SET_ON_HOUR")
+  {
+    String hora = cmd.substring(cmd.indexOf(' ') + 1);
+    StringToTiempo(hora, &control.horaOn);
+  }
+  else if (cmd.substring(0, cmd.indexOf(' ')) == "SET_OFF_HOUR")
+  {
+    String hora = cmd.substring(cmd.indexOf(' ') + 1);
+    StringToTiempo(hora, &control.horaOff);
+  }
+  else if (cmd.substring(0, cmd.indexOf(' ')) == "TOGGLE_HOUR_CONTROL")
+  {
+    control.controlPorHoras = !control.controlPorHoras;
+  }
+  else if (cmd.substring(0, cmd.indexOf(' ')) == "SET_HISTERESIS")
+  {
+    String zoneS = cmd.substring(cmd.indexOf(' ') + 1, cmd.lastIndexOf(' '));
+    int zone = zoneS.toInt();
+    unsigned long zoneU = (unsigned long)zone - 1;
+    if (zoneU >= sizeof(control.pisos) / sizeof(t_heating_floor))
+    {
+      Serial.println(F("ZONA SELECCIONADA FUERA DE INDICE"));
+    }
+    else
+    {
+      control.pisos[zoneU].histeresis = getCommandFloat(cmd);
+    }
+  }
+  else if (cmd.substring(0, cmd.indexOf(' ')) == "SET_UPPER_RANGE_Z")
+  {
+    String zoneS = cmd.substring(cmd.indexOf(' ') + 1, cmd.lastIndexOf(' '));
+    int zone = zoneS.toInt();
+    unsigned long zoneU = (unsigned long)zone - 1;
+    if (zoneU >= sizeof(control.pisos) / sizeof(t_heating_floor))
+    {
+      Serial.println(F("ZONA SELECCIONADA FUERA DE INDICE"));
+    }
+    else
+    {
+      control.pisos[zoneU].sensorT.RangoAlto = getCommandFloat(cmd);
+    }
+  }
+  else if (cmd.substring(0, cmd.indexOf(' ')) == "SET_LOWER_RANGE_Z")
+  {
+    String zoneS = cmd.substring(cmd.indexOf(' ') + 1, cmd.lastIndexOf(' '));
+    int zone = zoneS.toInt();
+    unsigned long zoneU = (unsigned long)zone - 1;
+    if (zoneU >= sizeof(control.pisos) / sizeof(t_heating_floor))
+    {
+      Serial.println(F("ZONA SELECCIONADA FUERA DE INDICE"));
+    }
+    else
+    {
+      control.pisos[zoneU].sensorT.RangoBajo = getCommandFloat(cmd);
+    }
+  }
+  else if (cmd.substring(0, cmd.indexOf(' ')) == "SET_UPPER_RANGE_A")
+  {
+    control.sensorAcumulador.RangoAlto = getCommandFloat(cmd);
+  }
+  else if (cmd.substring(0, cmd.indexOf(' ')) == "SET_LOWER_RANGE_A")
+  {
+    control.sensorAcumulador.RangoBajo = getCommandFloat(cmd);
+  }
+  else if (cmd.substring(0, cmd.indexOf(' ')) == "SET_ERROR_TEMPERATURE")
+  {
+    control.temperaturaAcumuladorError = getCommandFloat(cmd);
+  }
+  else if (cmd.substring(0, cmd.indexOf(' ')) == "SET_UPS_ERROR")
+  {
+    control.alimentacion.voltajeDeseado = getCommandFloat(cmd);
+  }
+  else if (cmd.substring(0, cmd.indexOf(' ')) == "SAVE")
+  {
+    GuardarConfig(&control);
+    Serial.println("GUARDANDO EN EEPROM");
+  }
   else if (cmd.substring(0, cmd.indexOf(' ')) == "STATUS")
   {
     Serial.print(F("Estado del sistema: "));
     Serial.println(control.estadoCalefaccion);
+    Serial.print(F("Hora de encendido: "));
+    imprimirTiempo(&control.horaOn);
+    Serial.print(F("Hora de apagado: "));
+    imprimirTiempo(&control.horaOff);
+    Serial.print(F("Hora actual: "));
+    imprimirTiempo(&control.horaReal);
+    Serial.print(F("Control por horas: "));
+    Serial.println(control.controlPorHoras);
     Serial.print(F("Margen de alimentacion: "));
     Serial.println(control.alimentacion.margenVoltaje);
     Serial.print(F("Voltaje de alimentacion: "));

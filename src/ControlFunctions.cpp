@@ -2,6 +2,7 @@
 #define CtrlFuncImp
 #include <Arduino.h>
 #include "GlobalStructures.h"
+#include "EeFunctions.h"
 
 //**************************************************************************************************************
 //           FUNCIONES DE CONTROL
@@ -38,8 +39,8 @@ void botonOnOff(bool estadoBoton, unsigned long tactualBoton, unsigned long tiem
      * @brief Boton que cambia entre dos estados de calefaccion (On, Off) con tiempos de manera
      *      Asincrona
      * @param estadoBoton boolean que indica si el boton esta pulsado o no
-     * @param tiempoPara1 tiempo que debe estar pulsado el boton para pasar al estado 1 (ms)
-     * @param tiempoPara2 tiempo que debe estar pulsado el boton para pasar al estado 2 (ms)
+     * @param tiempoParaOn tiempo que debe estar pulsado el boton para pasar al estado on (ms)
+     * @param tiempoParaOff tiempo que debe estar pulsado el boton para pasar al estado off (ms)
      * @param tPrev puntero que indica el tiempo previo, necesario para poder comprar (ms)
      * @param estadoSistema puntero que apunta al estado del sistema, puede ser On, Off o Viaje
      *
@@ -75,6 +76,19 @@ void botonOnOff(bool estadoBoton, unsigned long tactualBoton, unsigned long tiem
 }
 void botonViaje(bool estadoBoton, unsigned long tactualBoton, unsigned long tEntradaViaje, unsigned long tSalidaViaje, unsigned long *tPrev, estadosCalefaccion *sistema, estadosCalefaccion *sistemaPrevViaje)
 {
+    /**
+     *
+     * @brief Boton para la entrada y salida del modo viaje
+     * @param estadoBoton indica si el boton esta presionado o no
+     * @param tactualBoton tiempo actual del sistema
+     * @param tEntradaViaje tiempo para entrar al modo viaje
+     * @param tSalidaViaje tiempo para salir del modo viaje
+     * @param tPrev puntero tipo unsigned long para el tiempo previo de pulsacion
+     * @param sistema puntero al estado de nuestro sistema
+     * @param sistemaPrevViaje sistema previo a la entrada del viaje
+     *
+     * @return VOID
+     */
     if (estadoBoton == HIGH)
         *tPrev = tactualBoton;
     switch (*sistema)
@@ -106,10 +120,43 @@ void botonViaje(bool estadoBoton, unsigned long tactualBoton, unsigned long tEnt
         }
         break;
     case VolviendoViaje:
-        if(estadoBoton == HIGH)
+        if (estadoBoton == HIGH)
         {
             *sistema = *sistemaPrevViaje;
         }
+        break;
+    default:
+        break;
+    }
+}
+void botonReset(bool estadoBoton, unsigned long tactual, unsigned long T, t_heating_system *sistema)
+{
+    static unsigned long tPrev;
+    static unsigned char estadoSistemaBoton = 0;
+    if (estadoBoton == HIGH)
+    {
+        tPrev = tactual;
+    }
+    switch (estadoSistemaBoton)
+    {
+    case 0:
+        if (tactual - tPrev >= T)
+        {
+            estadoSistemaBoton = 1;
+            tPrev = tactual;
+        }
+        break;
+    case 1:
+        if (estadoBoton == HIGH)
+        {
+            estadoSistemaBoton = 2;
+        }
+        break;
+    case 2:
+        //De_eeprom_a_structura_fabrica(sistema);
+        Serial.println("BORRANDO DIGITO DE MOD CONFIG");
+        //EEPROM.update(0,0);
+        estadoSistemaBoton = 0;
         break;
     default:
         break;
