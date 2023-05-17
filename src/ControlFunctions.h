@@ -13,4 +13,5 @@ void cerradoSistema(t_heating_system *sistema);
 void controlZona(t_heating_floor *zona, bool activacion, unsigned long time);
 void histesis(t_heating_floor *piso);
 float getCommandFloat(String command);
+void ImprimirControl(t_heating_system *sistema);
 #endif

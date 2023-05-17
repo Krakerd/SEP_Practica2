@@ -3,6 +3,7 @@
 #include <Arduino.h>
 #include "GlobalStructures.h"
 #include "EeFunctions.h"
+#include "RelojConEstructuras.h"
 
 //**************************************************************************************************************
 //           FUNCIONES DE CONTROL
@@ -153,9 +154,9 @@ void botonReset(bool estadoBoton, unsigned long tactual, unsigned long T, t_heat
         }
         break;
     case 2:
-        //De_eeprom_a_structura_fabrica(sistema);
+        De_eeprom_a_structura_fabrica(sistema);
         Serial.println("BORRANDO DIGITO DE MOD CONFIG");
-        //EEPROM.update(0,0);
+        EEPROM.update(0,0);
         estadoSistemaBoton = 0;
         break;
     default:
@@ -310,5 +311,62 @@ void ImprimirArduino(char nombre[], float valor)
     Serial.print(":");
     Serial.print(valor);
     Serial.print(",");
+}
+void ImprimirControl(t_heating_system *sistema)
+{
+    Serial.print(F("Estado del sistema: "));
+    Serial.println(sistema->estadoCalefaccion);
+    Serial.print(F("Hora de encendido: "));
+    imprimirTiempo(&sistema->horaOn);
+    Serial.print(F("Hora de apagado: "));
+    imprimirTiempo(&sistema->horaOff);
+    Serial.print(F("Hora actual: "));
+    imprimirTiempo(&sistema->horaReal);
+    Serial.print(F("Control por horas: "));
+    Serial.println(sistema->controlPorHoras);
+    Serial.print(F("Margen de alimentacion: "));
+    Serial.println(sistema->alimentacion.margenVoltaje);
+    Serial.print(F("Voltaje de alimentacion: "));
+    Serial.println(sistema->alimentacion.voltajeAlimentacion);
+    Serial.print(F("Voltaje deseado de alimentacion: "));
+    Serial.println(sistema->alimentacion.voltajeDeseado);
+    Serial.print(F("Pin del sensor UPS: "));
+    Serial.println(sistema->alimentacion.pinUPS);
+    Serial.print(F("Temperatura de Acumulador: "));
+    Serial.println(sistema->temperaturaAcumulador);
+    Serial.print(F("Temperatura de error del Acumulador: "));
+    Serial.println(sistema->temperaturaAcumuladorError);
+    Serial.print(F("Pin del sensor del acumulador: "));
+    Serial.println(sistema->sensorAcumulador.pin);
+    Serial.print(F("Rangos del sensor del acumulador: "));
+    Serial.println(sistema->sensorAcumulador.RangoAlto);
+    Serial.println(sistema->sensorAcumulador.RangoBajo);
+    Serial.print(F("Temperatura de disparo de caldera: "));
+    Serial.println(sistema->temperaturaDisparoCaldera);
+    Serial.print(F("Temperatura de viaje: "));
+    Serial.println(sistema->temperaturaViaje);
+    Serial.print(F("Pin de sensor del colector: "));
+    Serial.println(sistema->colectores[0].sensorT.pin);
+    Serial.print(F("Rangos del sensor del colecor: "));
+    Serial.println(sistema->colectores[0].sensorT.RangoAlto);
+    Serial.println(sistema->colectores[0].sensorT.RangoBajo);
+    Serial.print(F("Temperatura Vaciado del colector: "));
+    Serial.println(sistema->colectores[0].temperaturaVaciado);
+    Serial.print(F("Tiempo de Vaciado del colector: "));
+    Serial.println(sistema->colectores[0].tiempoVaciado);
+    Serial.print(F("Temperatura Objetivo Zona 1: "));
+    Serial.println(sistema->pisos[0].temperaturaObjetivo);
+    Serial.print(F("Histeresis de Zona 1: "));
+    Serial.println(sistema->pisos[0].histeresis);
+    Serial.print(F("Rangos del sensor de la Zona 1: "));
+    Serial.println(sistema->pisos[0].sensorT.RangoAlto);
+    Serial.println(sistema->pisos[0].sensorT.RangoBajo);
+    Serial.print(F("Temperatura Objetivo Zona 2: "));
+    Serial.println(sistema->pisos[1].temperaturaObjetivo);
+    Serial.print(F("Histeresis de Zona 2: "));
+    Serial.println(sistema->pisos[1].histeresis);
+    Serial.print(F("Rangos del sensor de la Zona 2: "));
+    Serial.println(sistema->pisos[1].sensorT.RangoAlto);
+    Serial.println(sistema->pisos[1].sensorT.RangoBajo);
 }
 #endif

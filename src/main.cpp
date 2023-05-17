@@ -61,8 +61,11 @@ void setup()
   //***************************************************************************
   //        PRESET GENERAL
   //***************************************************************************
-  PresetFabrica();
+  //PresetFabrica();
   De_eeprom_a_structura_fabrica(&control);
+  if(EEPROM.read(0) == 1){
+    De_eeprom_a_structura(&control);
+  }
   control.estadoCalefaccion = Off;
   //***************************************************************************
   //        PUESTA EN HORA DEL RELOJ
@@ -213,7 +216,7 @@ void loop()
         }
         if (control.bombaPrincipal == 0)
           control.bombaPrincipal = 1;
-        if (control.temperaturaAcumulador >= control.temperaturaDisparoCaldera)
+        if (control.temperaturaAcumulador <= control.temperaturaDisparoCaldera)
           digitalWrite(control.pinCaldera, HIGH);
         else
           digitalWrite(control.pinCaldera, LOW);
@@ -255,7 +258,7 @@ void loop()
         }
         if (control.bombaPrincipal == 0)
           control.bombaPrincipal = 1;
-        if (control.temperaturaAcumulador >= control.temperaturaDisparoCaldera)
+        if (control.temperaturaAcumulador <= control.temperaturaDisparoCaldera)
           digitalWrite(control.pinCaldera, HIGH);
         else
           digitalWrite(control.pinCaldera, LOW);
@@ -435,49 +438,12 @@ void shell(void)
     GuardarConfig(&control);
     Serial.println("GUARDANDO EN EEPROM");
   }
+  else if (cmd.substring(0, cmd.indexOf(' ')) == "LOAD")
+  {
+    De_eeprom_a_structura(&control);
+  }
   else if (cmd.substring(0, cmd.indexOf(' ')) == "STATUS")
   {
-    Serial.print(F("Estado del sistema: "));
-    Serial.println(control.estadoCalefaccion);
-    Serial.print(F("Hora de encendido: "));
-    imprimirTiempo(&control.horaOn);
-    Serial.print(F("Hora de apagado: "));
-    imprimirTiempo(&control.horaOff);
-    Serial.print(F("Hora actual: "));
-    imprimirTiempo(&control.horaReal);
-    Serial.print(F("Control por horas: "));
-    Serial.println(control.controlPorHoras);
-    Serial.print(F("Margen de alimentacion: "));
-    Serial.println(control.alimentacion.margenVoltaje);
-    Serial.print(F("Voltaje de alimentacion: "));
-    Serial.println(control.alimentacion.voltajeAlimentacion);
-    Serial.print(F("Voltaje deseado de alimentacion: "));
-    Serial.println(control.alimentacion.voltajeDeseado);
-    Serial.print(F("Pin del sensor UPS: "));
-    Serial.println(control.alimentacion.pinUPS);
-    Serial.print(F("Temperatura de Acumulador: "));
-    Serial.println(control.temperaturaAcumulador);
-    Serial.print(F("Temperatura de error del Acumulador: "));
-    Serial.println(control.temperaturaAcumuladorError);
-    Serial.print(F("Pin del sensor del acumulador: "));
-    Serial.println(control.sensorAcumulador.pin);
-    Serial.print(F("Rangos del sensor del acumulador: "));
-    Serial.println(control.sensorAcumulador.RangoAlto);
-    Serial.println(control.sensorAcumulador.RangoBajo);
-    Serial.print(F("Temperatura de disparo de caldera: "));
-    Serial.println(control.temperaturaDisparoCaldera);
-    Serial.print(F("Temperatura de viaje: "));
-    Serial.println(control.temperaturaViaje);
-    Serial.print(F("Pin de sensor del colector: "));
-    Serial.println(control.colectores[0].sensorT.pin);
-    Serial.print(F("Rangos del sensor del colecor: "));
-    Serial.println(control.colectores[0].sensorT.RangoAlto);
-    Serial.println(control.colectores[0].sensorT.RangoBajo);
-    Serial.print(F("Temperatura Vaciado del colector: "));
-    Serial.println(control.colectores[0].temperaturaVaciado);
-    Serial.print(F("Tiempo de Vaciado del colector: "));
-    Serial.println(control.colectores[0].tiempoVaciado);
-    Serial.print(F("Temperatura Objetivo Zona 0: "));
-    Serial.println(control.pisos[0].temperaturaObjetivo);
+    ImprimirControl(&control);
   }
 }
