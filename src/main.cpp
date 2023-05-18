@@ -216,6 +216,7 @@ void loop()
         }
         if (control.bombaPrincipal == 1)
           control.bombaPrincipal = 0;
+        digitalWrite(control.pinCaldera, LOW);
       }
     } // ERRORES CIERRE
     else
@@ -270,6 +271,7 @@ void loop()
         }
         if (control.bombaPrincipal == 1)
           control.bombaPrincipal = 0;
+        digitalWrite(control.pinCaldera, LOW);
       }
     }
     else // CIERRE POR ERRORES
@@ -296,8 +298,6 @@ void loop()
   Imprimir("ValvulaZona2", control.pisos[1].valvula);
   Imprimir("ValvulaColector", control.colectores[0].valvula);
   Imprimir("ValvulaPrincipal", control.valvulaPrincipal);
-  Imprimir("DEBUG", control.pisos[1].temperaturaObjetivo);
-  Imprimir("DEBUG2", control.pisos[1].necesitaCalefaccion);
 }
 
 void shell(void)
