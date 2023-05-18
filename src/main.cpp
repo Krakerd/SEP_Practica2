@@ -47,7 +47,7 @@ void setup()
   //***************************************************************************
   //        PRESET GENERAL
   //***************************************************************************
-  // PresetFabrica();
+  //PresetFabrica();
   De_eeprom_a_structura_fabrica(&control);
   if (EEPROM.read(0) == 1)
   {
@@ -258,7 +258,7 @@ void loop()
         }
         if (control.bombaPrincipal == 0)
           control.bombaPrincipal = 1;
-        if (control.temperaturaAcumulador <= control.temperaturaDisparoCaldera)
+        if (control.pisos[0].temperatura <= control.temperaturaDisparoCalderaViaje || control.pisos[1].temperatura <= control.temperaturaDisparoCalderaViaje|| control.temperaturaAcumulador <= control.temperaturaDisparoCalderaViaje)
           digitalWrite(control.pinCaldera, HIGH);
         else
           digitalWrite(control.pinCaldera, LOW);
@@ -315,6 +315,7 @@ void shell(void)
     Serial.println(F("SET_OBJECTIVE_TEMPERATURE Z X.X -> Define la temperatura objetivo de la zona Z al float X.X"));
     Serial.println(F("SET_TRAVEL_TEMPERATURE X.X -> Define la temperatura minima del modo viaje al float X.X"));
     Serial.println(F("SET_BOILER_TEMPERATURE X.X -> Define la temperatura de disparo de caldera al float X.X"));
+    Serial.println(F("SET_BOILER_TRAVEL_TEMPERATURE X.X -> Define la temperatura de disparo de caldera al float X.X en modo viaje"));
     Serial.println(F("SET_COLLECTOR_TEMPERATURE X.X -> Define la temperatura de vaciado del colector al float X.X"));
     Serial.println(F("SET_COLLECTOR_EMPTY_TIME XX -> se cambia el tiempo de vaciado del colector al valor XX (s)"));
     Serial.println(F("SET_ON_HOUR hh:mm:ss -> Define la hora de encendido a la hora proporcionada"));
@@ -352,6 +353,10 @@ void shell(void)
   else if (cmd.substring(0, cmd.indexOf(' ')) == "SET_BOILER_TEMPERATURE")
   {
     control.temperaturaDisparoCaldera = getCommandFloat(cmd);
+  }
+  else if (cmd.substring(0, cmd.indexOf(' ')) == "SET_BOILER_TRAVEL_TEMPERATURE")
+  {
+    control.temperaturaDisparoCalderaViaje = getCommandFloat(cmd);
   }
   else if (cmd.substring(0, cmd.indexOf(' ')) == "SET_COLLECTOR_TEMPERATURE")
   {

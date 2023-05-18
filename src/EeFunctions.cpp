@@ -24,6 +24,8 @@ void PresetFabrica(void)
   fabrica.sensorAcumulador.RangoBajo = -5;
   fabrica.temperaturaAcumuladorError = 75;
   fabrica.temperaturaDisparoCaldera = 45;
+  fabrica.temperaturaDisparoCalderaViaje = 4;
+  fabrica.temperaturaViaje = 10;
 
   fabrica.colectores[0].pinValvula = 8;
   fabrica.colectores[0].sensorT.pin = A3;

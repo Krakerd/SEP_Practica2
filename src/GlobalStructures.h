@@ -114,6 +114,7 @@ typedef struct t_heating_system
   unsigned long tPrevCambioOnOff;
   unsigned long tPrevCambioViaje;
   float temperaturaViaje;
+  float temperaturaDisparoCalderaViaje;
 
   unsigned long tPrevErrorLed;
   bool prevLEDerror;
