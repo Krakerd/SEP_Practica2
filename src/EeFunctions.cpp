@@ -44,6 +44,8 @@ void PresetFabrica(void)
   fabrica.pisos[0].sensorT.RangoBajo = -5;
   fabrica.pisos[0].temperaturaObjetivo = 20;
   fabrica.pisos[0].valvula = Cerrado;
+  fabrica.pisos[0].horaOn = (t_time){21, 30, 0};
+  fabrica.pisos[0].horaOff = (t_time){22, 30, 0};
 
   fabrica.pisos[1].histeresis = 1;
   fabrica.pisos[1].necesitaCalefaccion = false;
@@ -53,10 +55,10 @@ void PresetFabrica(void)
   fabrica.pisos[1].sensorT.RangoBajo = -5;
   fabrica.pisos[1].temperaturaObjetivo = 20;
   fabrica.pisos[1].valvula = Cerrado;
+  fabrica.pisos[1].horaOn = (t_time){21, 30, 0};
+  fabrica.pisos[1].horaOff = (t_time){22, 30, 0};
 
   fabrica.controlPorHoras = false;
-  fabrica.horaOn = (t_time){21, 30, 0};
-  fabrica.horaOff = (t_time){22, 30, 0};
 
   EEPROM.put(1, fabrica);
 }

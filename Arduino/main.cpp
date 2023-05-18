@@ -1,18 +1,4 @@
-/*  Practica 2 de SEP, controla la calefaccion de 2 zonas por medio de estructuras y comandos de consola
-    Copyright (C) 2023  Daniel Ernesto Zorraquino Lejeune
-
-    This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program.  If not, see <https://www.gnu.org/licenses/>.*/
+/*  Practica 2 de SEP, controla la calefaccion de 2 zonas por medio de estructuras y comandos de consola */
 #include <Arduino.h>
 #include <TimerOne.h>
 #include <EEPROM.h>
@@ -31,6 +17,14 @@ void shell(void);
 
 t_heating_system control;
 String cmd;
+float tempZona1RAW;
+float tempZona2RAW;
+float upsRAW;
+float tempAcumuladorRAW;
+float tempColectorRAW;
+bool botonOnOffRAW;
+bool botonViajeRAW;
+bool botonResetRAW;
 
 void setup()
 {
@@ -50,19 +44,22 @@ void setup()
   {
     pinMode(i, INPUT_PULLUP);
   }
-
+  //***************************************************************************
+  //        PRESET GENERAL
+  //***************************************************************************
+  //PresetFabrica();
+  De_eeprom_a_structura_fabrica(&control);
+  if (EEPROM.read(0) == 1)
+  {
+    De_eeprom_a_structura(&control);
+  }
+  control.estadoCalefaccion = Off;
   //***************************************************************************
   //        PUESTA EN HORA DEL RELOJ
   //***************************************************************************
   int conv = StringToTiempo(__TIME__, &control.horaReal);
   if (conv != 0)
     Serial.println("ERROR EN LA PUESTA EN HORA");
-  //***************************************************************************
-  //        PRESET GENERAL
-  //***************************************************************************
-  PresetFabrica();
-  De_eeprom_a_structura_fabrica(&control);
-  control.estadoCalefaccion = Off;
   //***************************************************************************
   //        PRESET VALVULAS
   //***************************************************************************
@@ -82,8 +79,10 @@ void loop()
   //***************************************************************************
   t_time horaActualCopy;
   noInterrupts();
-  guardarTiempo(control.horaReal);
-  horaActualCopy = control.horaReal;
+  guardarTiempo(&control.horaReal);
+  horaActualCopy.hour = control.horaReal.hour;
+  horaActualCopy.minuts = control.horaReal.minuts;
+  horaActualCopy.seconds = control.horaReal.seconds;
   interrupts();
   //***************************************************************************
   //       LLAMADA A SHELL
@@ -93,7 +92,6 @@ void loop()
     cmd = Serial.readString();
     cmd.toUpperCase();
     shell();
-    
   }
   //***************************************************************************
   //       LECTURA Y CONTROL UPS
@@ -149,17 +147,33 @@ void loop()
   //***************************************************************************
   //       SISTEMA DE CALEFACCION
   //***************************************************************************
-  control.pisos[0].temperatura = mapFloat(analogRead(control.pisos[0].sensorT.pin), 0.0, 1023.0, control.pisos[0].sensorT.RangoBajo, control.pisos[0].sensorT.RangoAlto);
-  control.pisos[1].temperatura = mapFloat(analogRead(control.pisos[1].sensorT.pin), 0.0, 1023.0, control.pisos[1].sensorT.RangoBajo, control.pisos[1].sensorT.RangoAlto);
-  botonPermutaEstados(digitalRead(pinOnOff), 2000, 1000, &control.tPrevCambioOnOff, &control.estadoCalefaccion, Off, On);
+  tempZona1RAW = analogRead(control.pisos[0].sensorT.pin);
+  tempZona2RAW = analogRead(control.pisos[1].sensorT.pin);
+  control.pisos[0].temperatura = mapFloat(tempZona1RAW, 0.0, 1023.0, control.pisos[0].sensorT.RangoBajo, control.pisos[0].sensorT.RangoAlto);
+  control.pisos[1].temperatura = mapFloat(tempZona2RAW, 0.0, 1023.0, control.pisos[1].sensorT.RangoBajo, control.pisos[1].sensorT.RangoAlto);
+  botonOnOffRAW = digitalRead(pinOnOff);
+  botonViajeRAW = digitalRead(pinViaje);
+  botonOnOff(botonOnOffRAW, tactual, 1000, 2000, &control.tPrevCambioOnOff, &control.estadoCalefaccion);
+  botonViaje(botonViajeRAW, tactual, 2000, 1000, &control.tPrevCambioViaje, &control.estadoCalefaccion, &control.estadoAnteriorViaje);
+
   // Control por hora
-  if (compararTiempo(&horaActualCopy, &control.horaOn) >= 0 && control.controlPorHoras)
+  if (control.controlPorHoras == true)
   {
-    control.estadoCalefaccion = On;
-  }
-  if (compararTiempo(&horaActualCopy, &control.horaOff) >= 0 && control.controlPorHoras)
-  {
-    control.estadoCalefaccion = Off;
+    if (control.estadoCalefaccion != Viaje)
+    {
+      if (compararTiempo(&horaActualCopy, &control.horaOn) >= 0)
+      {
+        if (compararTiempo(&horaActualCopy, &control.horaOff) < 0)
+        {
+          control.estadoCalefaccion = On;
+          Serial.println("DENTRO 2");
+        }
+      }
+      if (compararTiempo(&horaActualCopy, &control.horaOff) >= 0)
+      {
+        control.estadoCalefaccion = Off;
+      }
+    }
   }
   switch (control.estadoCalefaccion)
   {
@@ -167,23 +181,11 @@ void loop()
     cerradoSistema(&control);
     control.temperaturaAcumulador = mapFloat(analogRead(control.sensorAcumulador.pin), 0.0, 1023.0, control.sensorAcumulador.RangoBajo, control.sensorAcumulador.RangoAlto); // para que no deje de leer la temperatura
     control.estadoAnteriorViaje = control.estadoCalefaccion;
-    control.controlPorHorasAnterior = control.controlPorHoras;
-    // Boton de viaje
-    if (tactual - control.tPrevCambioViaje > 2000)
-    {
-      if (digitalRead(pinViaje) == HIGH)
-      {
-        control.estadoCalefaccion = Viaje;
-        control.controlPorHoras = false;
-        control.tPrevCambioViaje = tactual;
-      }
-    }
-    if (digitalRead(pinViaje) == HIGH)
-      control.tPrevCambioViaje = tactual;
     break;
 
   case On:
     control.temperaturaAcumulador = mapFloat(analogRead(control.sensorAcumulador.pin), 0.0, 1023.0, control.sensorAcumulador.RangoBajo, control.sensorAcumulador.RangoAlto); // para que no deje de leer la temperatura
+    control.estadoAnteriorViaje = control.estadoCalefaccion;
     if (control.alimentacion.estadoUPS == estadosAlimentacion::ALIMENTACION_OK)
     {
       // Control Zona 1int compararTiempo(t_time t_actual, t_time t_comparar);
@@ -201,7 +203,7 @@ void loop()
         }
         if (control.bombaPrincipal == 0)
           control.bombaPrincipal = 1;
-        if (control.temperaturaAcumulador >= control.temperaturaDisparoCaldera)
+        if (control.temperaturaAcumulador <= control.temperaturaDisparoCaldera)
           digitalWrite(control.pinCaldera, HIGH);
         else
           digitalWrite(control.pinCaldera, LOW);
@@ -214,40 +216,38 @@ void loop()
         }
         if (control.bombaPrincipal == 1)
           control.bombaPrincipal = 0;
+        digitalWrite(control.pinCaldera, LOW);
       }
     } // ERRORES CIERRE
     else
     {
       cerradoSistema(&control);
     }
-    control.estadoAnteriorViaje = control.estadoCalefaccion;
-    control.controlPorHorasAnterior = control.controlPorHoras;
-
-    // BOTON VIAJE
-    if (tactual - control.tPrevCambioViaje > 2000)
-    {
-      if (digitalRead(pinViaje) == HIGH)
-      {
-        control.estadoCalefaccion = Viaje;
-        control.controlPorHoras = false;
-        control.tPrevCambioViaje = tactual;
-      }
-    }
-    if (digitalRead(pinViaje) == HIGH)
-      control.tPrevCambioViaje = tactual;
     break;
 
   case Viaje:
     control.temperaturaAcumulador = mapFloat(analogRead(control.sensorAcumulador.pin), 0.0, 1023.0, control.sensorAcumulador.RangoBajo, control.sensorAcumulador.RangoAlto); // para que no deje de leer la temperatura
-    control.pisos[0].temperaturaObjetivo = control.temperaturaViaje;
-    control.pisos[1].temperaturaObjetivo = control.temperaturaViaje;
     if (control.alimentacion.estadoUPS == estadosAlimentacion::ALIMENTACION_OK)
     {
       // Control Zona 1
-      histesis(&control.pisos[0]);
+      if (control.pisos[0].temperatura > control.temperaturaViaje + control.pisos[0].histeresis)
+      {
+        control.pisos[0].necesitaCalefaccion = false;
+      }
+      else if (control.pisos[0].temperatura < control.temperaturaViaje - control.pisos[0].histeresis)
+      {
+        control.pisos[0].necesitaCalefaccion = true;
+      }
       controlZona(&control.pisos[0], control.pisos[0].necesitaCalefaccion, tactual);
       // Control Zona 2
-      histesis(&control.pisos[1]);
+      if (control.pisos[1].temperatura > control.temperaturaViaje + control.pisos[1].histeresis)
+      {
+        control.pisos[1].necesitaCalefaccion = false;
+      }
+      else if (control.pisos[1].temperatura < control.temperaturaViaje - control.pisos[1].histeresis)
+      {
+        control.pisos[1].necesitaCalefaccion = true;
+      }
       controlZona(&control.pisos[1], control.pisos[1].necesitaCalefaccion, tactual);
       // Encender Apagar calefaccion principal.
       if (control.pisos[0].necesitaCalefaccion || control.pisos[1].necesitaCalefaccion)
@@ -258,7 +258,7 @@ void loop()
         }
         if (control.bombaPrincipal == 0)
           control.bombaPrincipal = 1;
-        if (control.temperaturaAcumulador >= control.temperaturaDisparoCaldera)
+        if (control.pisos[0].temperatura <= control.temperaturaDisparoCalderaViaje || control.pisos[1].temperatura <= control.temperaturaDisparoCalderaViaje|| control.temperaturaAcumulador <= control.temperaturaDisparoCalderaViaje)
           digitalWrite(control.pinCaldera, HIGH);
         else
           digitalWrite(control.pinCaldera, LOW);
@@ -271,27 +271,20 @@ void loop()
         }
         if (control.bombaPrincipal == 1)
           control.bombaPrincipal = 0;
+        digitalWrite(control.pinCaldera, LOW);
       }
     }
     else // CIERRE POR ERRORES
     {
       cerradoSistema(&control);
     }
-    // VUELTA VIAJE
-    if (tactual - control.tPrevCambioViaje > 1000)
-    {
-      if (digitalRead(pinViaje) == HIGH)
-      {
-        control.estadoCalefaccion = control.estadoAnteriorViaje;
-        control.controlPorHoras = control.controlPorHorasAnterior;
-        control.tPrevCambioViaje = tactual;
-      }
-    }
-    if (digitalRead(pinViaje) == HIGH)
-      control.tPrevCambioViaje = tactual;
     break;
   }
-
+  //***************************************************************************
+  //       BOTON RESET
+  //***************************************************************************
+  botonResetRAW = digitalRead(pinReset);
+  botonReset(botonResetRAW, tactual, 2000, &control);
   //***************************************************************************
   //       IMPRESIONES
   //***************************************************************************
@@ -309,6 +302,8 @@ void loop()
 
 void shell(void)
 {
+  control.tPrevCambioViaje = millis();
+  control.tPrevCambioOnOff = millis();
   Serial.println("");
   Serial.println(cmd);
   if (cmd == "HELP")
@@ -317,15 +312,16 @@ void shell(void)
     Serial.print(F("\t"));
     Serial.println(F("LSITA DE COMANDOS"));
     Serial.println(F("/////////////////////////////////////////////////////"));
-    Serial.println(F("SET_OBJECTIVE_TEMPERATURE Z X.X -> Define la temperatura objetivo de la zona Z (0-1) al float X.X"));
+    Serial.println(F("SET_OBJECTIVE_TEMPERATURE Z X.X -> Define la temperatura objetivo de la zona Z al float X.X"));
     Serial.println(F("SET_TRAVEL_TEMPERATURE X.X -> Define la temperatura minima del modo viaje al float X.X"));
     Serial.println(F("SET_BOILER_TEMPERATURE X.X -> Define la temperatura de disparo de caldera al float X.X"));
+    Serial.println(F("SET_BOILER_TRAVEL_TEMPERATURE X.X -> Define la temperatura de disparo de caldera al float X.X en modo viaje"));
     Serial.println(F("SET_COLLECTOR_TEMPERATURE X.X -> Define la temperatura de vaciado del colector al float X.X"));
     Serial.println(F("SET_COLLECTOR_EMPTY_TIME XX -> se cambia el tiempo de vaciado del colector al valor XX (s)"));
     Serial.println(F("SET_ON_HOUR hh:mm:ss -> Define la hora de encendido a la hora proporcionada"));
     Serial.println(F("SET_OFF_HOUR hh:mm:ss -> Define la hora de apagado a la hora proporcionada"));
-    Serial.println(F("ENABLE_HOUR_CONTROL -> Activa el control por horas de la calefaccion"));
-    Serial.println(F("SET_HISTERESIS Z X.X -> Modifica la histeresis de la zona Z (0-1) al valor X.X"));
+    Serial.println(F("TOGGLE_HOUR_CONTROL -> Activa/Desactiva el control por horas de la calefaccion"));
+    Serial.println(F("SET_HISTERESIS Z X.X -> Modifica la histeresis de la zona Z al valor X.X"));
     Serial.println(F("SET_UPPER_RANGE_Z Z X.X -> Modifica el valor maximo del sensor de temperatura de la zona Z al valor X.X"));
     Serial.println(F("SET_LOWER_RANGE_Z Z X.X -> Modifica el valor minimo del sensor de temperatura de la zona Z al valor X.X"));
     Serial.println(F("SET_UPPER_RANGE_A X.X -> Modifica el valor maximo del sensor de temperatura del acumulador al valor X.X"));
@@ -334,21 +330,20 @@ void shell(void)
     Serial.println(F("SET_UPS_ERROR X.X -> Cambia la tension del error de alimentacion al valor X.X"));
     Serial.println(F("SAVE -> Guarda la configuración actual a la EEPROM"));
     Serial.println(F("LOAD -> Carga los datos de la configuracion guardada en la EEPROM aunque se haya pulsado el boton de reset"));
-    Serial.println(F("RECOVER -> Carga los datos de la EEPROM y se dejan listos para carga con el inicio de sistema en caso de haber pulsado el RESET"));
     Serial.println(F("STATUS -> Muestra los datos del sistema de control"));
   }
   else if (cmd.substring(0, cmd.indexOf(' ')) == "SET_OBJECTIVE_TEMPERATURE")
   {
     String zoneS = cmd.substring(cmd.indexOf(' ') + 1, cmd.lastIndexOf(' '));
     int zone = zoneS.toInt();
-    unsigned long zoneU = (unsigned long)zone;
+    unsigned long zoneU = (unsigned long)zone - 1;
     if (zoneU >= sizeof(control.pisos) / sizeof(t_heating_floor))
     {
-      Serial.println("ZONA SELECCIONADA FUERA DE INDICE");
+      Serial.println(F("ZONA SELECCIONADA FUERA DE INDICE"));
     }
     else
     {
-      control.pisos[zone].temperaturaObjetivo = getCommandFloat(cmd);
+      control.pisos[zoneU].temperaturaObjetivo = getCommandFloat(cmd);
     }
   }
   else if (cmd.substring(0, cmd.indexOf(' ')) == "SET_TRAVEL_TEMPERATURE")
@@ -359,6 +354,10 @@ void shell(void)
   {
     control.temperaturaDisparoCaldera = getCommandFloat(cmd);
   }
+  else if (cmd.substring(0, cmd.indexOf(' ')) == "SET_BOILER_TRAVEL_TEMPERATURE")
+  {
+    control.temperaturaDisparoCalderaViaje = getCommandFloat(cmd);
+  }
   else if (cmd.substring(0, cmd.indexOf(' ')) == "SET_COLLECTOR_TEMPERATURE")
   {
     control.colectores[0].temperaturaVaciado = getCommandFloat(cmd);
@@ -368,37 +367,89 @@ void shell(void)
     unsigned long tiempo = (unsigned long)getCommandFloat(cmd) * 1000;
     control.colectores[0].tiempoVaciado = tiempo;
   }
+  else if (cmd.substring(0, cmd.indexOf(' ')) == "SET_ON_HOUR")
+  {
+    String hora = cmd.substring(cmd.indexOf(' ') + 1);
+    StringToTiempo(hora, &control.horaOn);
+  }
+  else if (cmd.substring(0, cmd.indexOf(' ')) == "SET_OFF_HOUR")
+  {
+    String hora = cmd.substring(cmd.indexOf(' ') + 1);
+    StringToTiempo(hora, &control.horaOff);
+  }
+  else if (cmd.substring(0, cmd.indexOf(' ')) == "TOGGLE_HOUR_CONTROL")
+  {
+    control.controlPorHoras = !control.controlPorHoras;
+  }
+  else if (cmd.substring(0, cmd.indexOf(' ')) == "SET_HISTERESIS")
+  {
+    String zoneS = cmd.substring(cmd.indexOf(' ') + 1, cmd.lastIndexOf(' '));
+    int zone = zoneS.toInt();
+    unsigned long zoneU = (unsigned long)zone - 1;
+    if (zoneU >= sizeof(control.pisos) / sizeof(t_heating_floor))
+    {
+      Serial.println(F("ZONA SELECCIONADA FUERA DE INDICE"));
+    }
+    else
+    {
+      control.pisos[zoneU].histeresis = getCommandFloat(cmd);
+    }
+  }
+  else if (cmd.substring(0, cmd.indexOf(' ')) == "SET_UPPER_RANGE_Z")
+  {
+    String zoneS = cmd.substring(cmd.indexOf(' ') + 1, cmd.lastIndexOf(' '));
+    int zone = zoneS.toInt();
+    unsigned long zoneU = (unsigned long)zone - 1;
+    if (zoneU >= sizeof(control.pisos) / sizeof(t_heating_floor))
+    {
+      Serial.println(F("ZONA SELECCIONADA FUERA DE INDICE"));
+    }
+    else
+    {
+      control.pisos[zoneU].sensorT.RangoAlto = getCommandFloat(cmd);
+    }
+  }
+  else if (cmd.substring(0, cmd.indexOf(' ')) == "SET_LOWER_RANGE_Z")
+  {
+    String zoneS = cmd.substring(cmd.indexOf(' ') + 1, cmd.lastIndexOf(' '));
+    int zone = zoneS.toInt();
+    unsigned long zoneU = (unsigned long)zone - 1;
+    if (zoneU >= sizeof(control.pisos) / sizeof(t_heating_floor))
+    {
+      Serial.println(F("ZONA SELECCIONADA FUERA DE INDICE"));
+    }
+    else
+    {
+      control.pisos[zoneU].sensorT.RangoBajo = getCommandFloat(cmd);
+    }
+  }
+  else if (cmd.substring(0, cmd.indexOf(' ')) == "SET_UPPER_RANGE_A")
+  {
+    control.sensorAcumulador.RangoAlto = getCommandFloat(cmd);
+  }
+  else if (cmd.substring(0, cmd.indexOf(' ')) == "SET_LOWER_RANGE_A")
+  {
+    control.sensorAcumulador.RangoBajo = getCommandFloat(cmd);
+  }
+  else if (cmd.substring(0, cmd.indexOf(' ')) == "SET_ERROR_TEMPERATURE")
+  {
+    control.temperaturaAcumuladorError = getCommandFloat(cmd);
+  }
+  else if (cmd.substring(0, cmd.indexOf(' ')) == "SET_UPS_ERROR")
+  {
+    control.alimentacion.voltajeDeseado = getCommandFloat(cmd);
+  }
+  else if (cmd.substring(0, cmd.indexOf(' ')) == "SAVE")
+  {
+    GuardarConfig(&control);
+    Serial.println("GUARDANDO EN EEPROM");
+  }
+  else if (cmd.substring(0, cmd.indexOf(' ')) == "LOAD")
+  {
+    De_eeprom_a_structura(&control);
+  }
   else if (cmd.substring(0, cmd.indexOf(' ')) == "STATUS")
   {
-    Serial.print(F("Margen de alimentacion: "));
-    Serial.println(control.alimentacion.margenVoltaje);
-    Serial.print(F("Voltaje de alimentacion: "));
-    Serial.println(control.alimentacion.voltajeAlimentacion);
-    Serial.print(F("Voltaje deseado de alimentacion: "));
-    Serial.println(control.alimentacion.voltajeDeseado);
-    Serial.print(F("Pin del sensor UPS: "));
-    Serial.println(control.alimentacion.pinUPS);
-    Serial.print(F("Temperatura de Acumulador: "));
-    Serial.println(control.temperaturaAcumulador);
-    Serial.print(F("Temperatura de error del Acumulador: "));
-    Serial.println(control.temperaturaAcumuladorError);
-    Serial.print(F("Pin del sensor del acumulador: "));
-    Serial.println(control.sensorAcumulador.pin);
-    Serial.print(F("Rangos del sensor del acumulador: "));
-    Serial.println(control.sensorAcumulador.RangoAlto);
-    Serial.println(control.sensorAcumulador.RangoBajo);
-    Serial.print(F("Temperatura de disparo de caldera: "));
-    Serial.println(control.temperaturaDisparoCaldera);
-    Serial.print(F("Temperatura de viaje: "));
-    Serial.println(control.temperaturaViaje);
-    Serial.print(F("Pin de sensor del colector: "));
-    Serial.println(control.colectores[0].sensorT.pin);
-    Serial.print(F("Rangos del sensor del colecor: "));
-    Serial.println(control.colectores[0].sensorT.RangoAlto);
-    Serial.println(control.colectores[0].sensorT.RangoBajo);
-    Serial.print(F("Temperatura Vaciado del colector: "));
-    Serial.println(control.colectores[0].temperaturaVaciado);
-    Serial.print(F("Tiempo de Vaciado del colector: "));
-    Serial.println(control.colectores[0].tiempoVaciado);
+    ImprimirControl(&control);
   }
 }

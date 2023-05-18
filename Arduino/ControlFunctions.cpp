@@ -2,6 +2,8 @@
 #define CtrlFuncImp
 #include <Arduino.h>
 #include "GlobalStructures.h"
+#include "EeFunctions.h"
+#include "RelojConEstructuras.h"
 
 //**************************************************************************************************************
 //           FUNCIONES DE CONTROL
@@ -32,46 +34,134 @@ estadosAlimentacion estadoUPS(float voltaje, float margen, float valor)
     return resultado;
 }
 
-void botonPermutaEstados(bool estadoBoton, unsigned long tiempoPara1, unsigned long tiempoPara2, unsigned long *tPrev, estadosCalefaccion *estadoSistema, estadosCalefaccion estado1, estadosCalefaccion estado2)
+void botonOnOff(bool estadoBoton, unsigned long tactualBoton, unsigned long tiempoParaOn, unsigned long tiempoParaOff, unsigned long *tPrev, estadosCalefaccion *estadoSistema)
 {
     /**
-     * @brief Boton que cambia entre dos estados de calefaccion (On, Off, Viaje) con tiempos de manera
+     * @brief Boton que cambia entre dos estados de calefaccion (On, Off) con tiempos de manera
      *      Asincrona
      * @param estadoBoton boolean que indica si el boton esta pulsado o no
-     * @param tiempoPara1 tiempo que debe estar pulsado el boton para pasar al estado 1 (ms)
-     * @param tiempoPara2 tiempo que debe estar pulsado el boton para pasar al estado 2 (ms)
+     * @param tiempoParaOn tiempo que debe estar pulsado el boton para pasar al estado on (ms)
+     * @param tiempoParaOff tiempo que debe estar pulsado el boton para pasar al estado off (ms)
      * @param tPrev puntero que indica el tiempo previo, necesario para poder comprar (ms)
      * @param estadoSistema puntero que apunta al estado del sistema, puede ser On, Off o Viaje
-     * @param estado1 estado 1 de entre los dos estados a los que se puede cambiar
-     * @param estado2 estado 2 de entre los dos estados a los que se puede cambiar
      *
      * @return VOID
      */
-    unsigned long tactualBoton = millis();
-    if (*estadoSistema == estado1)
-    {
-        if (tactualBoton - *tPrev > tiempoPara2)
-        {
-            if (estadoBoton == HIGH)
-            {
-                *estadoSistema = On;
-                *tPrev = tactualBoton;
-            }
-        }
-    }
-    else if (*estadoSistema == estado2)
-    {
-        if (tactualBoton - *tPrev > tiempoPara1)
-        {
-            if (estadoBoton == HIGH)
-            {
-                *estadoSistema = Off;
-                *tPrev = tactualBoton;
-            }
-        }
-    }
     if (estadoBoton == HIGH)
         *tPrev = tactualBoton;
+    switch (*estadoSistema)
+    {
+    case On:
+        if (tactualBoton - *tPrev > tiempoParaOff)
+        {
+            *estadoSistema = CambiandoOff;
+        }
+        break;
+    case CambiandoOff:
+        if (estadoBoton == HIGH)
+            *estadoSistema = Off;
+        break;
+    case Off:
+        if (tactualBoton - *tPrev > tiempoParaOn)
+        {
+            *estadoSistema = CambiandoOn;
+        }
+        break;
+    case CambiandoOn:
+        if (estadoBoton == HIGH)
+            *estadoSistema = On;
+        break;
+    default:
+        break;
+    }
+}
+void botonViaje(bool estadoBoton, unsigned long tactualBoton, unsigned long tEntradaViaje, unsigned long tSalidaViaje, unsigned long *tPrev, estadosCalefaccion *sistema, estadosCalefaccion *sistemaPrevViaje)
+{
+    /**
+     *
+     * @brief Boton para la entrada y salida del modo viaje
+     * @param estadoBoton indica si el boton esta presionado o no
+     * @param tactualBoton tiempo actual del sistema
+     * @param tEntradaViaje tiempo para entrar al modo viaje
+     * @param tSalidaViaje tiempo para salir del modo viaje
+     * @param tPrev puntero tipo unsigned long para el tiempo previo de pulsacion
+     * @param sistema puntero al estado de nuestro sistema
+     * @param sistemaPrevViaje sistema previo a la entrada del viaje
+     *
+     * @return VOID
+     */
+    if (estadoBoton == HIGH)
+        *tPrev = tactualBoton;
+    switch (*sistema)
+    {
+    case On:
+        if (tactualBoton - *tPrev > tEntradaViaje)
+
+        {
+            *sistema = CambiandoViaje;
+        }
+        break;
+    case Off:
+
+        if (tactualBoton - *tPrev > tEntradaViaje)
+        {
+            *sistema = CambiandoViaje;
+        }
+        break;
+    case CambiandoViaje:
+        if (estadoBoton == HIGH)
+        {
+            *sistema = Viaje;
+        }
+        break;
+    case Viaje:
+        if (tactualBoton - *tPrev > tSalidaViaje)
+        {
+            *sistema = VolviendoViaje;
+        }
+        break;
+    case VolviendoViaje:
+        if (estadoBoton == HIGH)
+        {
+            *sistema = *sistemaPrevViaje;
+        }
+        break;
+    default:
+        break;
+    }
+}
+void botonReset(bool estadoBoton, unsigned long tactual, unsigned long T, t_heating_system *sistema)
+{
+    static unsigned long tPrev;
+    static unsigned char estadoSistemaBoton = 0;
+    if (estadoBoton == HIGH)
+    {
+        tPrev = tactual;
+    }
+    switch (estadoSistemaBoton)
+    {
+    case 0:
+        if (tactual - tPrev >= T)
+        {
+            estadoSistemaBoton = 1;
+            tPrev = tactual;
+        }
+        break;
+    case 1:
+        if (estadoBoton == HIGH)
+        {
+            estadoSistemaBoton = 2;
+        }
+        break;
+    case 2:
+        De_eeprom_a_structura_fabrica(sistema);
+        Serial.println("BORRANDO DIGITO DE MOD CONFIG");
+        EEPROM.update(0,0);
+        estadoSistemaBoton = 0;
+        break;
+    default:
+        break;
+    }
 }
 
 void activacionElectrovalvula(int pin, unsigned long tactual, unsigned long *prev, unsigned long T, estadosValvula *valvula, estadosValvula *estadoPrev)
@@ -206,7 +296,7 @@ float getCommandFloat(String command)
     float valor = valorS.toFloat();
     return valor;
 }
-void Imprimir(char nombre[], float valor)
+void Imprimir(const char nombre[], float valor)
 {
     // FUNCION HECHA PARA IMPRIMIR CON TELEPLOT (EXTENSION DE VSCODE)
     Serial.print(">");
@@ -221,5 +311,62 @@ void ImprimirArduino(char nombre[], float valor)
     Serial.print(":");
     Serial.print(valor);
     Serial.print(",");
+}
+void ImprimirControl(t_heating_system *sistema)
+{
+    Serial.print(F("Estado del sistema: "));
+    Serial.println(sistema->estadoCalefaccion);
+    Serial.print(F("Hora de encendido: "));
+    imprimirTiempo(&sistema->horaOn);
+    Serial.print(F("Hora de apagado: "));
+    imprimirTiempo(&sistema->horaOff);
+    Serial.print(F("Hora actual: "));
+    imprimirTiempo(&sistema->horaReal);
+    Serial.print(F("Control por horas: "));
+    Serial.println(sistema->controlPorHoras);
+    Serial.print(F("Margen de alimentacion: "));
+    Serial.println(sistema->alimentacion.margenVoltaje);
+    Serial.print(F("Voltaje de alimentacion: "));
+    Serial.println(sistema->alimentacion.voltajeAlimentacion);
+    Serial.print(F("Voltaje deseado de alimentacion: "));
+    Serial.println(sistema->alimentacion.voltajeDeseado);
+    Serial.print(F("Pin del sensor UPS: "));
+    Serial.println(sistema->alimentacion.pinUPS);
+    Serial.print(F("Temperatura de Acumulador: "));
+    Serial.println(sistema->temperaturaAcumulador);
+    Serial.print(F("Temperatura de error del Acumulador: "));
+    Serial.println(sistema->temperaturaAcumuladorError);
+    Serial.print(F("Pin del sensor del acumulador: "));
+    Serial.println(sistema->sensorAcumulador.pin);
+    Serial.print(F("Rangos del sensor del acumulador: "));
+    Serial.println(sistema->sensorAcumulador.RangoAlto);
+    Serial.println(sistema->sensorAcumulador.RangoBajo);
+    Serial.print(F("Temperatura de disparo de caldera: "));
+    Serial.println(sistema->temperaturaDisparoCaldera);
+    Serial.print(F("Temperatura de viaje: "));
+    Serial.println(sistema->temperaturaViaje);
+    Serial.print(F("Pin de sensor del colector: "));
+    Serial.println(sistema->colectores[0].sensorT.pin);
+    Serial.print(F("Rangos del sensor del colecor: "));
+    Serial.println(sistema->colectores[0].sensorT.RangoAlto);
+    Serial.println(sistema->colectores[0].sensorT.RangoBajo);
+    Serial.print(F("Temperatura Vaciado del colector: "));
+    Serial.println(sistema->colectores[0].temperaturaVaciado);
+    Serial.print(F("Tiempo de Vaciado del colector: "));
+    Serial.println(sistema->colectores[0].tiempoVaciado);
+    Serial.print(F("Temperatura Objetivo Zona 1: "));
+    Serial.println(sistema->pisos[0].temperaturaObjetivo);
+    Serial.print(F("Histeresis de Zona 1: "));
+    Serial.println(sistema->pisos[0].histeresis);
+    Serial.print(F("Rangos del sensor de la Zona 1: "));
+    Serial.println(sistema->pisos[0].sensorT.RangoAlto);
+    Serial.println(sistema->pisos[0].sensorT.RangoBajo);
+    Serial.print(F("Temperatura Objetivo Zona 2: "));
+    Serial.println(sistema->pisos[1].temperaturaObjetivo);
+    Serial.print(F("Histeresis de Zona 2: "));
+    Serial.println(sistema->pisos[1].histeresis);
+    Serial.print(F("Rangos del sensor de la Zona 2: "));
+    Serial.println(sistema->pisos[1].sensorT.RangoAlto);
+    Serial.println(sistema->pisos[1].sensorT.RangoBajo);
 }
 #endif

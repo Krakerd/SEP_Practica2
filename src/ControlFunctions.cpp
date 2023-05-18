@@ -156,7 +156,7 @@ void botonReset(bool estadoBoton, unsigned long tactual, unsigned long T, t_heat
     case 2:
         De_eeprom_a_structura_fabrica(sistema);
         Serial.println("BORRANDO DIGITO DE MOD CONFIG");
-        EEPROM.update(0,0);
+        EEPROM.update(0, 0);
         estadoSistemaBoton = 0;
         break;
     default:
@@ -222,6 +222,16 @@ void histesis(t_heating_floor *piso)
     {
         piso->necesitaCalefaccion = true;
     }
+}
+void cerradoZona(t_heating_floor *sistema)
+{
+     unsigned long tiempoActual = millis();
+    if (sistema->valvula != estadosValvula::Cerrado)
+    {
+        activacionElectrovalvula(sistema->pinValvula, tiempoActual, &sistema->tPrevValvula, 1000, &sistema->valvula, &sistema->valvulaAnterior);
+    }
+    else
+        sistema->valvulaAnterior = Cerrado; // Seguridad para cambio de estados
 }
 
 void cerradoSistema(t_heating_system *sistema)
@@ -316,10 +326,12 @@ void ImprimirControl(t_heating_system *sistema)
 {
     Serial.print(F("Estado del sistema: "));
     Serial.println(sistema->estadoCalefaccion);
-    Serial.print(F("Hora de encendido: "));
-    imprimirTiempo(&sistema->horaOn);
-    Serial.print(F("Hora de apagado: "));
-    imprimirTiempo(&sistema->horaOff);
+    Serial.print(F("Horas de encendido de zonas: "));
+    imprimirTiempo(&sistema->pisos[0].horaOn);
+    imprimirTiempo(&sistema->pisos[1].horaOn);
+    Serial.print(F("Horas de apagado de zonas: "));
+    imprimirTiempo(&sistema->pisos[0].horaOff);
+    imprimirTiempo(&sistema->pisos[1].horaOff);
     Serial.print(F("Hora actual: "));
     imprimirTiempo(&sistema->horaReal);
     Serial.print(F("Control por horas: "));

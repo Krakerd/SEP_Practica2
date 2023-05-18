@@ -57,6 +57,8 @@ typedef struct t_solar_collector
 typedef struct t_heating_floor
 {
   t_sensorTemp sensorT;
+  t_time horaOn;
+  t_time horaOff;
   float temperaturaObjetivo;
   float temperatura;
   float histeresis;
@@ -89,8 +91,6 @@ typedef struct t_acumulador
 typedef struct t_heating_system
 {
   t_time horaReal;
-  t_time horaOn;
-  t_time horaOff;
   bool controlPorHoras;
   
   t_heating_floor pisos[2];

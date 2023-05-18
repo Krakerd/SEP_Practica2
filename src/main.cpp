@@ -47,13 +47,14 @@ void setup()
   //***************************************************************************
   //        PRESET GENERAL
   //***************************************************************************
-  //PresetFabrica();
+  PresetFabrica();
   De_eeprom_a_structura_fabrica(&control);
   if (EEPROM.read(0) == 1)
   {
     De_eeprom_a_structura(&control);
   }
   control.estadoCalefaccion = Off;
+  control.controlPorHoras = Off;
   //***************************************************************************
   //        PUESTA EN HORA DEL RELOJ
   //***************************************************************************
@@ -155,45 +156,39 @@ void loop()
   botonViajeRAW = digitalRead(pinViaje);
   botonOnOff(botonOnOffRAW, tactual, 1000, 2000, &control.tPrevCambioOnOff, &control.estadoCalefaccion);
   botonViaje(botonViajeRAW, tactual, 2000, 1000, &control.tPrevCambioViaje, &control.estadoCalefaccion, &control.estadoAnteriorViaje);
-
-  // Control por hora
-  if (control.controlPorHoras == true)
+  // SISTEMA TEMPORIZADO
+  if (control.controlPorHoras)
   {
-    if (control.estadoCalefaccion != Viaje)
+    if (control.alimentacion.estadoUPS == estadosAlimentacion::ALIMENTACION_OK && control.temperaturaAcumulador < control.temperaturaAcumuladorError)
     {
-      if (compararTiempo(&horaActualCopy, &control.horaOn) >= 0)
+      // ZONA 1
+      if (compararTiempo(&horaActualCopy, &control.pisos[0].horaOn) >= 0)
       {
-        if (compararTiempo(&horaActualCopy, &control.horaOff) < 0)
+        if (compararTiempo(&horaActualCopy, &control.pisos[0].horaOff) < 0)
         {
-          control.estadoCalefaccion = On;
-          Serial.println("DENTRO 2");
+          histesis(&control.pisos[0]);
+          controlZona(&control.pisos[0], control.pisos[0].necesitaCalefaccion, tactual);
         }
       }
-      if (compararTiempo(&horaActualCopy, &control.horaOff) >= 0)
+      if (compararTiempo(&horaActualCopy, &control.pisos[0].horaOff) >= 0)
       {
-        control.estadoCalefaccion = Off;
+        cerradoZona(&control.pisos[0]);
+        control.pisos[0].necesitaCalefaccion = false;
       }
-    }
-  }
-  switch (control.estadoCalefaccion)
-  {
-  case Off:
-    cerradoSistema(&control);
-    control.temperaturaAcumulador = mapFloat(analogRead(control.sensorAcumulador.pin), 0.0, 1023.0, control.sensorAcumulador.RangoBajo, control.sensorAcumulador.RangoAlto); // para que no deje de leer la temperatura
-    control.estadoAnteriorViaje = control.estadoCalefaccion;
-    break;
-
-  case On:
-    control.temperaturaAcumulador = mapFloat(analogRead(control.sensorAcumulador.pin), 0.0, 1023.0, control.sensorAcumulador.RangoBajo, control.sensorAcumulador.RangoAlto); // para que no deje de leer la temperatura
-    control.estadoAnteriorViaje = control.estadoCalefaccion;
-    if (control.alimentacion.estadoUPS == estadosAlimentacion::ALIMENTACION_OK)
-    {
-      // Control Zona 1int compararTiempo(t_time t_actual, t_time t_comparar);
-      histesis(&control.pisos[0]);
-      controlZona(&control.pisos[0], control.pisos[0].necesitaCalefaccion, tactual);
-      // Control Zona 2
-      histesis(&control.pisos[1]);
-      controlZona(&control.pisos[1], control.pisos[1].necesitaCalefaccion, tactual);
+      // ZONA 2
+      if (compararTiempo(&horaActualCopy, &control.pisos[1].horaOn) >= 0)
+      {
+        if (compararTiempo(&horaActualCopy, &control.pisos[1].horaOff) < 0)
+        {
+          histesis(&control.pisos[1]);
+          controlZona(&control.pisos[1], control.pisos[1].necesitaCalefaccion, tactual);
+        }
+      }
+      if (compararTiempo(&horaActualCopy, &control.pisos[1].horaOff) >= 0)
+      {
+        cerradoZona(&control.pisos[1]);
+        control.pisos[1].necesitaCalefaccion = false;
+      }
       // Encender Apagar calefaccion principal.
       if (control.pisos[0].necesitaCalefaccion || control.pisos[1].necesitaCalefaccion)
       {
@@ -211,74 +206,126 @@ void loop()
       else
       {
         if (control.valvulaPrincipal != estadosValvula::Cerrado)
-        {
-          activacionElectrovalvula(control.pinPrincipal, tactual, &control.tPrevValvula, 1000, &control.valvulaPrincipal, &control.valvulaPrincipalAnterior);
-        }
-        if (control.bombaPrincipal == 1)
-          control.bombaPrincipal = 0;
-        digitalWrite(control.pinCaldera, LOW);
-      }
-    } // ERRORES CIERRE
-    else
-    {
-      cerradoSistema(&control);
-    }
-    break;
-
-  case Viaje:
-    control.temperaturaAcumulador = mapFloat(analogRead(control.sensorAcumulador.pin), 0.0, 1023.0, control.sensorAcumulador.RangoBajo, control.sensorAcumulador.RangoAlto); // para que no deje de leer la temperatura
-    if (control.alimentacion.estadoUPS == estadosAlimentacion::ALIMENTACION_OK)
-    {
-      // Control Zona 1
-      if (control.pisos[0].temperatura > control.temperaturaViaje + control.pisos[0].histeresis)
-      {
-        control.pisos[0].necesitaCalefaccion = false;
-      }
-      else if (control.pisos[0].temperatura < control.temperaturaViaje - control.pisos[0].histeresis)
-      {
-        control.pisos[0].necesitaCalefaccion = true;
-      }
-      controlZona(&control.pisos[0], control.pisos[0].necesitaCalefaccion, tactual);
-      // Control Zona 2
-      if (control.pisos[1].temperatura > control.temperaturaViaje + control.pisos[1].histeresis)
-      {
-        control.pisos[1].necesitaCalefaccion = false;
-      }
-      else if (control.pisos[1].temperatura < control.temperaturaViaje - control.pisos[1].histeresis)
-      {
-        control.pisos[1].necesitaCalefaccion = true;
-      }
-      controlZona(&control.pisos[1], control.pisos[1].necesitaCalefaccion, tactual);
-      // Encender Apagar calefaccion principal.
-      if (control.pisos[0].necesitaCalefaccion || control.pisos[1].necesitaCalefaccion)
-      {
-        if (control.valvulaPrincipal != estadosValvula::Abierto)
-        {
-          activacionElectrovalvula(control.pinPrincipal, tactual, &control.tPrevValvula, 1000, &control.valvulaPrincipal, &control.valvulaPrincipalAnterior);
-        }
-        if (control.bombaPrincipal == 0)
-          control.bombaPrincipal = 1;
-        if (control.pisos[0].temperatura <= control.temperaturaDisparoCalderaViaje || control.pisos[1].temperatura <= control.temperaturaDisparoCalderaViaje|| control.temperaturaAcumulador <= control.temperaturaDisparoCalderaViaje)
-          digitalWrite(control.pinCaldera, HIGH);
-        else
+          {
+            activacionElectrovalvula(control.pinPrincipal, tactual, &control.tPrevValvula, 1000, &control.valvulaPrincipal, &control.valvulaPrincipalAnterior);
+          }
+          if (control.bombaPrincipal == 1)
+            control.bombaPrincipal = 0;
           digitalWrite(control.pinCaldera, LOW);
       }
-      else
-      {
-        if (control.valvulaPrincipal != estadosValvula::Cerrado)
-        {
-          activacionElectrovalvula(control.pinPrincipal, tactual, &control.tPrevValvula, 1000, &control.valvulaPrincipal, &control.valvulaPrincipalAnterior);
-        }
-        if (control.bombaPrincipal == 1)
-          control.bombaPrincipal = 0;
-        digitalWrite(control.pinCaldera, LOW);
-      }
     }
-    else // CIERRE POR ERRORES
-    {
+    else{
       cerradoSistema(&control);
     }
-    break;
+  }
+  // SISTEMA NORMAL
+  else
+  {
+    switch (control.estadoCalefaccion)
+    {
+    case Off:
+      cerradoSistema(&control);
+      control.temperaturaAcumulador = mapFloat(analogRead(control.sensorAcumulador.pin), 0.0, 1023.0, control.sensorAcumulador.RangoBajo, control.sensorAcumulador.RangoAlto); // para que no deje de leer la temperatura
+      control.estadoAnteriorViaje = control.estadoCalefaccion;
+      break;
+
+    case On:
+      control.temperaturaAcumulador = mapFloat(analogRead(control.sensorAcumulador.pin), 0.0, 1023.0, control.sensorAcumulador.RangoBajo, control.sensorAcumulador.RangoAlto); // para que no deje de leer la temperatura
+      control.estadoAnteriorViaje = control.estadoCalefaccion;
+      if (control.alimentacion.estadoUPS == estadosAlimentacion::ALIMENTACION_OK && control.temperaturaAcumulador < control.temperaturaAcumuladorError)
+      {
+        // Control Zona 1int compararTiempo(t_time t_actual, t_time t_comparar);
+        histesis(&control.pisos[0]);
+        controlZona(&control.pisos[0], control.pisos[0].necesitaCalefaccion, tactual);
+        // Control Zona 2
+        histesis(&control.pisos[1]);
+        controlZona(&control.pisos[1], control.pisos[1].necesitaCalefaccion, tactual);
+        // Encender Apagar calefaccion principal.
+        if (control.pisos[0].necesitaCalefaccion || control.pisos[1].necesitaCalefaccion)
+        {
+          if (control.valvulaPrincipal != estadosValvula::Abierto)
+          {
+            activacionElectrovalvula(control.pinPrincipal, tactual, &control.tPrevValvula, 1000, &control.valvulaPrincipal, &control.valvulaPrincipalAnterior);
+          }
+          if (control.bombaPrincipal == 0)
+            control.bombaPrincipal = 1;
+          if (control.temperaturaAcumulador <= control.temperaturaDisparoCaldera)
+            digitalWrite(control.pinCaldera, HIGH);
+          else
+            digitalWrite(control.pinCaldera, LOW);
+        }
+        else
+        {
+          if (control.valvulaPrincipal != estadosValvula::Cerrado)
+          {
+            activacionElectrovalvula(control.pinPrincipal, tactual, &control.tPrevValvula, 1000, &control.valvulaPrincipal, &control.valvulaPrincipalAnterior);
+          }
+          if (control.bombaPrincipal == 1)
+            control.bombaPrincipal = 0;
+          digitalWrite(control.pinCaldera, LOW);
+        }
+      } // ERRORES CIERRE
+      else
+      {
+        cerradoSistema(&control);
+      }
+      break;
+
+    case Viaje:
+      control.temperaturaAcumulador = mapFloat(analogRead(control.sensorAcumulador.pin), 0.0, 1023.0, control.sensorAcumulador.RangoBajo, control.sensorAcumulador.RangoAlto); // para que no deje de leer la temperatura
+      if (control.alimentacion.estadoUPS == estadosAlimentacion::ALIMENTACION_OK && control.temperaturaAcumulador < control.temperaturaAcumuladorError)
+      {
+        // Control Zona 1
+        if (control.pisos[0].temperatura > control.temperaturaViaje + control.pisos[0].histeresis)
+        {
+          control.pisos[0].necesitaCalefaccion = false;
+        }
+        else if (control.pisos[0].temperatura < control.temperaturaViaje - control.pisos[0].histeresis)
+        {
+          control.pisos[0].necesitaCalefaccion = true;
+        }
+        controlZona(&control.pisos[0], control.pisos[0].necesitaCalefaccion, tactual);
+        // Control Zona 2
+        if (control.pisos[1].temperatura > control.temperaturaViaje + control.pisos[1].histeresis)
+        {
+          control.pisos[1].necesitaCalefaccion = false;
+        }
+        else if (control.pisos[1].temperatura < control.temperaturaViaje - control.pisos[1].histeresis)
+        {
+          control.pisos[1].necesitaCalefaccion = true;
+        }
+        controlZona(&control.pisos[1], control.pisos[1].necesitaCalefaccion, tactual);
+        // Encender Apagar calefaccion principal.
+        if (control.pisos[0].necesitaCalefaccion || control.pisos[1].necesitaCalefaccion)
+        {
+          if (control.valvulaPrincipal != estadosValvula::Abierto)
+          {
+            activacionElectrovalvula(control.pinPrincipal, tactual, &control.tPrevValvula, 1000, &control.valvulaPrincipal, &control.valvulaPrincipalAnterior);
+          }
+          if (control.bombaPrincipal == 0)
+            control.bombaPrincipal = 1;
+          if (control.pisos[0].temperatura <= control.temperaturaDisparoCalderaViaje || control.pisos[1].temperatura <= control.temperaturaDisparoCalderaViaje || control.temperaturaAcumulador <= control.temperaturaDisparoCalderaViaje)
+            digitalWrite(control.pinCaldera, HIGH);
+          else
+            digitalWrite(control.pinCaldera, LOW);
+        }
+        else
+        {
+          if (control.valvulaPrincipal != estadosValvula::Cerrado)
+          {
+            activacionElectrovalvula(control.pinPrincipal, tactual, &control.tPrevValvula, 1000, &control.valvulaPrincipal, &control.valvulaPrincipalAnterior);
+          }
+          if (control.bombaPrincipal == 1)
+            control.bombaPrincipal = 0;
+          digitalWrite(control.pinCaldera, LOW);
+        }
+      }
+      else // CIERRE POR ERRORES
+      {
+        cerradoSistema(&control);
+      }
+      break;
+    }
   }
   //***************************************************************************
   //       BOTON RESET
@@ -298,6 +345,7 @@ void loop()
   Imprimir("ValvulaZona2", control.pisos[1].valvula);
   Imprimir("ValvulaColector", control.colectores[0].valvula);
   Imprimir("ValvulaPrincipal", control.valvulaPrincipal);
+  Serial.flush();
 }
 
 void shell(void)
@@ -318,8 +366,8 @@ void shell(void)
     Serial.println(F("SET_BOILER_TRAVEL_TEMPERATURE X.X -> Define la temperatura de disparo de caldera al float X.X en modo viaje"));
     Serial.println(F("SET_COLLECTOR_TEMPERATURE X.X -> Define la temperatura de vaciado del colector al float X.X"));
     Serial.println(F("SET_COLLECTOR_EMPTY_TIME XX -> se cambia el tiempo de vaciado del colector al valor XX (s)"));
-    Serial.println(F("SET_ON_HOUR hh:mm:ss -> Define la hora de encendido a la hora proporcionada"));
-    Serial.println(F("SET_OFF_HOUR hh:mm:ss -> Define la hora de apagado a la hora proporcionada"));
+    Serial.println(F("SET_ON_HOUR Z hh:mm:ss -> Define la hora de encendido a la hora proporcionada en la zona Z"));
+    Serial.println(F("SET_OFF_HOUR Z hh:mm:ss -> Define la hora de apagado a la hora proporcionada en la zona Z"));
     Serial.println(F("TOGGLE_HOUR_CONTROL -> Activa/Desactiva el control por horas de la calefaccion"));
     Serial.println(F("SET_HISTERESIS Z X.X -> Modifica la histeresis de la zona Z al valor X.X"));
     Serial.println(F("SET_UPPER_RANGE_Z Z X.X -> Modifica el valor maximo del sensor de temperatura de la zona Z al valor X.X"));
@@ -369,13 +417,33 @@ void shell(void)
   }
   else if (cmd.substring(0, cmd.indexOf(' ')) == "SET_ON_HOUR")
   {
-    String hora = cmd.substring(cmd.indexOf(' ') + 1);
-    StringToTiempo(hora, &control.horaOn);
+    String zoneS = cmd.substring(cmd.indexOf(' ') + 1, cmd.lastIndexOf(' '));
+    int zone = zoneS.toInt();
+    unsigned long zoneU = (unsigned long)zone - 1;
+    if (zoneU >= sizeof(control.pisos) / sizeof(t_heating_floor))
+    {
+      Serial.println(F("ZONA SELECCIONADA FUERA DE INDICE"));
+    }
+    else
+    {
+      String hora = cmd.substring(cmd.lastIndexOf(' ') + 1);
+      StringToTiempo(hora, &control.pisos[zoneU].horaOn);
+    }
   }
   else if (cmd.substring(0, cmd.indexOf(' ')) == "SET_OFF_HOUR")
   {
-    String hora = cmd.substring(cmd.indexOf(' ') + 1);
-    StringToTiempo(hora, &control.horaOff);
+    String zoneS = cmd.substring(cmd.indexOf(' ') + 1, cmd.lastIndexOf(' '));
+    int zone = zoneS.toInt();
+    unsigned long zoneU = (unsigned long)zone - 1;
+    if (zoneU >= sizeof(control.pisos) / sizeof(t_heating_floor))
+    {
+      Serial.println(F("ZONA SELECCIONADA FUERA DE INDICE"));
+    }
+    else
+    {
+      String hora = cmd.substring(cmd.lastIndexOf(' ') + 1);
+      StringToTiempo(hora, &control.pisos[zoneU].horaOff);
+    }
   }
   else if (cmd.substring(0, cmd.indexOf(' ')) == "TOGGLE_HOUR_CONTROL")
   {
