@@ -61,9 +61,10 @@ void setup()
   //***************************************************************************
   //        PRESET GENERAL
   //***************************************************************************
-  //PresetFabrica();
+  // PresetFabrica();
   De_eeprom_a_structura_fabrica(&control);
-  if(EEPROM.read(0) == 1){
+  if (EEPROM.read(0) == 1)
+  {
     De_eeprom_a_structura(&control);
   }
   control.estadoCalefaccion = Off;
@@ -239,15 +240,27 @@ void loop()
 
   case Viaje:
     control.temperaturaAcumulador = mapFloat(analogRead(control.sensorAcumulador.pin), 0.0, 1023.0, control.sensorAcumulador.RangoBajo, control.sensorAcumulador.RangoAlto); // para que no deje de leer la temperatura
-    control.pisos[0].temperaturaObjetivo = control.temperaturaViaje;
-    control.pisos[1].temperaturaObjetivo = control.temperaturaViaje;
     if (control.alimentacion.estadoUPS == estadosAlimentacion::ALIMENTACION_OK)
     {
       // Control Zona 1
-      histesis(&control.pisos[0]);
+      if (control.pisos[0].temperatura > control.temperaturaViaje + control.pisos[0].histeresis)
+      {
+        control.pisos[0].necesitaCalefaccion = false;
+      }
+      else if (control.pisos[0].temperatura < control.temperaturaViaje - control.pisos[0].histeresis)
+      {
+        control.pisos[0].necesitaCalefaccion = true;
+      }
       controlZona(&control.pisos[0], control.pisos[0].necesitaCalefaccion, tactual);
       // Control Zona 2
-      histesis(&control.pisos[1]);
+      if (control.pisos[1].temperatura > control.temperaturaViaje + control.pisos[1].histeresis)
+      {
+        control.pisos[1].necesitaCalefaccion = false;
+      }
+      else if (control.pisos[1].temperatura < control.temperaturaViaje - control.pisos[1].histeresis)
+      {
+        control.pisos[1].necesitaCalefaccion = true;
+      }
       controlZona(&control.pisos[1], control.pisos[1].necesitaCalefaccion, tactual);
       // Encender Apagar calefaccion principal.
       if (control.pisos[0].necesitaCalefaccion || control.pisos[1].necesitaCalefaccion)
@@ -297,6 +310,8 @@ void loop()
   Imprimir("ValvulaZona2", control.pisos[1].valvula);
   Imprimir("ValvulaColector", control.colectores[0].valvula);
   Imprimir("ValvulaPrincipal", control.valvulaPrincipal);
+  Imprimir("DEBUG", control.pisos[1].temperaturaObjetivo);
+  Imprimir("DEBUG2", control.pisos[1].necesitaCalefaccion);
 }
 
 void shell(void)

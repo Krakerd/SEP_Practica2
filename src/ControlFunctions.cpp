@@ -265,6 +265,14 @@ void controlZona(t_heating_floor *zona, bool activacion, unsigned long time)
      *
      * @return VOID
      */
+    if (zona->temperatura > zona->temperaturaObjetivo + zona->histeresis)
+    {
+        zona->necesitaCalefaccion = false;
+    }
+    else if (zona->temperatura < zona->temperaturaObjetivo - zona->histeresis)
+    {
+        zona->necesitaCalefaccion = true;
+    }
     if (activacion)
     {
         if (zona->valvula != estadosValvula::Abierto)
