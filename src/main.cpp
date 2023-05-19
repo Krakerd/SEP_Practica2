@@ -47,7 +47,7 @@ void setup()
   //***************************************************************************
   //        PRESET GENERAL
   //***************************************************************************
-  PresetFabrica();
+  // PresetFabrica();
   De_eeprom_a_structura_fabrica(&control);
   if (EEPROM.read(0) == 1)
   {
@@ -55,6 +55,9 @@ void setup()
   }
   control.estadoCalefaccion = Off;
   control.controlPorHoras = Off;
+  control.pisos[0].valvula = estadosValvula::Cerrado;
+  control.pisos[1].valvula = estadosValvula::Cerrado;
+  control.colectores[0].valvula = estadosValvula::Cerrado;
   //***************************************************************************
   //        PUESTA EN HORA DEL RELOJ
   //***************************************************************************
@@ -62,7 +65,7 @@ void setup()
   if (conv != 0)
     Serial.println("ERROR EN LA PUESTA EN HORA");
   //***************************************************************************
-  //        PRESET VALVULAS
+  //        PRESET TIEMPOS
   //***************************************************************************
   control.tPrevCambioViaje = millis(); // compensar tiempo de leida de EEPROM
   control.tPrevCambioOnOff = millis(); // compensar tiempo de leida de EEPROM
@@ -126,6 +129,7 @@ void loop()
   case 0:
     if (control.colectores[0].temperatura >= control.colectores[0].temperaturaVaciado)
       control.colectores[0].estadoColector = 1;
+    control.colectores[0].tPrevVaciado = tactual;
     break;
   case 1:
     if (control.colectores[0].valvula != estadosValvula::Abierto)
@@ -145,6 +149,7 @@ void loop()
       control.colectores[0].estadoColector = 0;
     break;
   }
+  //Serial.println(control.colectores[0].estadoColector);
   //***************************************************************************
   //       SISTEMA DE CALEFACCION
   //***************************************************************************
@@ -206,15 +211,16 @@ void loop()
       else
       {
         if (control.valvulaPrincipal != estadosValvula::Cerrado)
-          {
-            activacionElectrovalvula(control.pinPrincipal, tactual, &control.tPrevValvula, 1000, &control.valvulaPrincipal, &control.valvulaPrincipalAnterior);
-          }
-          if (control.bombaPrincipal == 1)
-            control.bombaPrincipal = 0;
-          digitalWrite(control.pinCaldera, LOW);
+        {
+          activacionElectrovalvula(control.pinPrincipal, tactual, &control.tPrevValvula, 1000, &control.valvulaPrincipal, &control.valvulaPrincipalAnterior);
+        }
+        if (control.bombaPrincipal == 1)
+          control.bombaPrincipal = 0;
+        digitalWrite(control.pinCaldera, LOW);
       }
     }
-    else{
+    else
+    {
       cerradoSistema(&control);
     }
   }
@@ -354,12 +360,14 @@ void shell(void)
   control.tPrevCambioOnOff = millis();
   Serial.println("");
   Serial.println(cmd);
+  static bool cambiosTempHabilitados = true;
   if (cmd == "HELP")
   {
     Serial.println(F("/////////////////////////////////////////////////////"));
     Serial.print(F("\t"));
     Serial.println(F("LSITA DE COMANDOS"));
     Serial.println(F("/////////////////////////////////////////////////////"));
+    Serial.println(F("TOGGLE_TEMPERATURE_CHANGE -> Inhibe los cambios de temperaturas"));
     Serial.println(F("SET_OBJECTIVE_TEMPERATURE Z X.X -> Define la temperatura objetivo de la zona Z al float X.X"));
     Serial.println(F("SET_TRAVEL_TEMPERATURE X.X -> Define la temperatura minima del modo viaje al float X.X"));
     Serial.println(F("SET_BOILER_TEMPERATURE X.X -> Define la temperatura de disparo de caldera al float X.X"));
@@ -380,35 +388,74 @@ void shell(void)
     Serial.println(F("LOAD -> Carga los datos de la configuracion guardada en la EEPROM aunque se haya pulsado el boton de reset"));
     Serial.println(F("STATUS -> Muestra los datos del sistema de control"));
   }
+  else if (cmd.substring(0, cmd.indexOf(' ')) == "TOGGLE_TEMPERATURE_CHANGE")
+  {
+    cambiosTempHabilitados = !cambiosTempHabilitados;
+  }
   else if (cmd.substring(0, cmd.indexOf(' ')) == "SET_OBJECTIVE_TEMPERATURE")
   {
-    String zoneS = cmd.substring(cmd.indexOf(' ') + 1, cmd.lastIndexOf(' '));
-    int zone = zoneS.toInt();
-    unsigned long zoneU = (unsigned long)zone - 1;
-    if (zoneU >= sizeof(control.pisos) / sizeof(t_heating_floor))
+    if (cambiosTempHabilitados)
     {
-      Serial.println(F("ZONA SELECCIONADA FUERA DE INDICE"));
+      String zoneS = cmd.substring(cmd.indexOf(' ') + 1, cmd.lastIndexOf(' '));
+      int zone = zoneS.toInt();
+      unsigned long zoneU = (unsigned long)zone - 1;
+      if (zoneU >= sizeof(control.pisos) / sizeof(t_heating_floor))
+      {
+        Serial.println(F("ZONA SELECCIONADA FUERA DE INDICE"));
+      }
+      else
+      {
+        control.pisos[zoneU].temperaturaObjetivo = getCommandFloat(cmd);
+      }
     }
     else
     {
-      control.pisos[zoneU].temperaturaObjetivo = getCommandFloat(cmd);
+      Serial.println(F("CAMBIOS DE TEMPERATURA DESHABILITADOS"));
     }
   }
   else if (cmd.substring(0, cmd.indexOf(' ')) == "SET_TRAVEL_TEMPERATURE")
   {
-    control.temperaturaViaje = getCommandFloat(cmd);
+    if (cambiosTempHabilitados)
+    {
+      control.temperaturaViaje = getCommandFloat(cmd);
+    }
+    else
+    {
+      Serial.println(F("CAMBIOS DE TEMPERATURA DESHABILITADOS"));
+    }
   }
   else if (cmd.substring(0, cmd.indexOf(' ')) == "SET_BOILER_TEMPERATURE")
   {
-    control.temperaturaDisparoCaldera = getCommandFloat(cmd);
+    if (cambiosTempHabilitados)
+    {
+      control.temperaturaDisparoCaldera = getCommandFloat(cmd);
+    }
+    else
+    {
+      Serial.println(F("CAMBIOS DE TEMPERATURA DESHABILITADOS"));
+    }
   }
   else if (cmd.substring(0, cmd.indexOf(' ')) == "SET_BOILER_TRAVEL_TEMPERATURE")
   {
-    control.temperaturaDisparoCalderaViaje = getCommandFloat(cmd);
+    if (cambiosTempHabilitados)
+    {
+      control.temperaturaDisparoCalderaViaje = getCommandFloat(cmd);
+    }
+    else
+    {
+      Serial.println(F("CAMBIOS DE TEMPERATURA DESHABILITADOS"));
+    }
   }
   else if (cmd.substring(0, cmd.indexOf(' ')) == "SET_COLLECTOR_TEMPERATURE")
   {
-    control.colectores[0].temperaturaVaciado = getCommandFloat(cmd);
+    if (cambiosTempHabilitados)
+    {
+      control.colectores[0].temperaturaVaciado = getCommandFloat(cmd);
+    }
+    else
+    {
+      Serial.println(F("CAMBIOS DE TEMPERATURA DESHABILITADOS"));
+    }
   }
   else if (cmd.substring(0, cmd.indexOf(' ')) == "SET_COLLECTOR_EMPTY_TIME")
   {
@@ -501,7 +548,14 @@ void shell(void)
   }
   else if (cmd.substring(0, cmd.indexOf(' ')) == "SET_ERROR_TEMPERATURE")
   {
-    control.temperaturaAcumuladorError = getCommandFloat(cmd);
+    if (cambiosTempHabilitados)
+    {
+      control.temperaturaAcumuladorError = getCommandFloat(cmd);
+    }
+    else
+    {
+      Serial.println(F("CAMBIOS DE TEMPERATURA DESHABILITADOS"));
+    }
   }
   else if (cmd.substring(0, cmd.indexOf(' ')) == "SET_UPS_ERROR")
   {
@@ -519,5 +573,7 @@ void shell(void)
   else if (cmd.substring(0, cmd.indexOf(' ')) == "STATUS")
   {
     ImprimirControl(&control);
+    Serial.print(F("Cambios de temperatura: "));
+    Serial.println(cambiosTempHabilitados);
   }
 }
